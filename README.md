@@ -6,7 +6,7 @@ Portable agent skills, plus the small CLIs that back them. The skills are built 
 
 ### vault-curator
 
-> **Status:** v1 in progress. Implemented: `scan`, `validate`, `review`, `apply`, `watermark` and the `curate` skill. Not yet: hubs, entities, backfill, retrieval.
+> **Status:** v1 in progress. Implemented: `scan`, `entities`, `validate`, `review`, `apply`, `watermark`, and the `setup`, `curate`, `entities` and `backfill` skills. Not yet: hubs, retrieval.
 
 A set of skills plus a Go CLI that turns a flat, unlinked markdown vault (such as an Obsidian vault) into a linked, typed knowledge base. Every change is reviewed before it is committed.
 
