@@ -31,7 +31,7 @@ func TestLeftoversReturnInPlainScan(t *testing.T) {
 	ops := keepOps(kept, rejected)
 	ops[1].Status = plan.Rejected
 	p := &plan.Plan{Version: plan.Version, Operations: ops}
-	if _, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: t.TempDir()}); err != nil {
+	if _, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()}); err != nil {
 		t.Fatal(err)
 	}
 	run(t, r, "merge", "--no-ff", "--quiet", "-m", "merge curation", testBranch)
@@ -54,7 +54,7 @@ func TestLeftoversReturnInPlainScan(t *testing.T) {
 
 	// A keep clears the leftover.
 	p2 := &plan.Plan{Version: plan.Version, Operations: keepOps(rejected)}
-	if _, err := Apply(r.Dir, p2, Options{Branch: "curate/second", WorktreeRoot: t.TempDir()}); err != nil {
+	if _, err := Apply(r.Dir, p2, Options{SkipReviewCheckForTests: true, Branch: "curate/second", WorktreeRoot: t.TempDir()}); err != nil {
 		t.Fatal(err)
 	}
 	run(t, r, "merge", "--no-ff", "--quiet", "-m", "merge curation", "curate/second")

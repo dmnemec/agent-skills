@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 func TestApplyAndWatermarkJSON(t *testing.T) {
 	r := gittest.Vault(t)
 	var out, errOut bytes.Buffer
-	code := run([]string{"apply", "--vault", r.Dir, "--json", testPlan,
+	code := run([]string{"apply", "--vault", r.Dir, "--json", reviewedPlan(t, r.Dir),
 		"--branch", "curate/cli", "--worktree-root", t.TempDir()}, &out, &errOut)
 	if code != 0 {
 		t.Fatalf("apply exit code = %d, stderr = %s", code, errOut.String())
@@ -93,7 +94,7 @@ func TestApplyText(t *testing.T) {
 	r := gittest.Vault(t)
 	var out, errOut bytes.Buffer
 	if code := run([]string{"apply", "--vault", r.Dir, "--branch", "curate/cli",
-		"--worktree-root", t.TempDir(), testPlan}, &out, &errOut); code != 0 {
+		"--worktree-root", t.TempDir(), reviewedPlan(t, r.Dir)}, &out, &errOut); code != 0 {
 		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
 	}
 	s := out.String()
@@ -109,6 +110,50 @@ func TestApplyText(t *testing.T) {
 	out.Reset()
 	if code := run([]string{"watermark", "--vault", r.Dir}, &out, &errOut); code != 1 {
 		t.Errorf("watermark before merge: exit code = %d", code)
+	}
+}
+
+func TestApplyRefusesUnreviewedPlan(t *testing.T) {
+	r := gittest.Vault(t)
+	args := func(p string) []string {
+		return []string{"apply", "--vault", r.Dir, "--worktree-root", t.TempDir(), p}
+	}
+
+	// Statuses written by hand, no review.
+	hand := approvedPlan(t)
+	var out, errOut bytes.Buffer
+	if code := run(args(hand), &out, &errOut); code != 1 {
+		t.Fatalf("hand-approved plan: exit code = %d, want 1", code)
+	}
+	for _, want := range []string{"plan was not reviewed", "no review stamp", "vault-curator review", "review --sync"} {
+		if !strings.Contains(errOut.String(), want) {
+			t.Errorf("stderr = %s\nwant %q", errOut.String(), want)
+		}
+	}
+	// validate does not need the stamp.
+	if code := run([]string{"validate", "--vault", r.Dir, hand}, &out, &errOut); code != 0 {
+		t.Errorf("validate of hand-approved plan: exit code = %d: %s", code, errOut.String())
+	}
+
+	// Reviewed and synced, then a status edited by hand.
+	p := reviewedPlan(t, r.Dir)
+	data, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := strings.Replace(string(data), `"status": "approved"`, `"status": "rejected"`, 1)
+	if edited == string(data) {
+		t.Fatal("no status to edit")
+	}
+	if err := os.WriteFile(p, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	errOut.Reset()
+	if code := run(args(p), &out, &errOut); code != 1 || !strings.Contains(errOut.String(), "a status changed after the review was synced") {
+		t.Errorf("edited status: exit code = %d, stderr = %s", code, errOut.String())
+	}
+	if branches, _ := r.Run("branch", "--list", "curate/*"); branches != "" {
+		t.Errorf("branches left: %s", branches)
 	}
 }
 
@@ -138,7 +183,7 @@ func TestApplySnapshotsDirtyVault(t *testing.T) {
 	r := gittest.Vault(t)
 	gittest.AppendFile(t, r, "Unsorted.md", "- uncommitted\n")
 	var out, errOut bytes.Buffer
-	if code := run([]string{"apply", "--vault", r.Dir, "--json", "--worktree-root", t.TempDir(), testPlan}, &out, &errOut); code != 0 {
+	if code := run([]string{"apply", "--vault", r.Dir, "--json", "--worktree-root", t.TempDir(), reviewedPlan(t, r.Dir)}, &out, &errOut); code != 0 {
 		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
 	}
 	var got struct {
@@ -156,14 +201,14 @@ func TestApplySnapshotsDirtyVault(t *testing.T) {
 	// Text output names the snapshot; a clean vault's JSON omits it.
 	gittest.AppendFile(t, r, "Unsorted.md", "- again\n")
 	out.Reset()
-	if code := run([]string{"apply", "--vault", r.Dir, "--branch", "curate/two", "--worktree-root", t.TempDir(), testPlan}, &out, &errOut); code != 0 {
+	if code := run([]string{"apply", "--vault", r.Dir, "--branch", "curate/two", "--worktree-root", t.TempDir(), reviewedPlan(t, r.Dir)}, &out, &errOut); code != 0 {
 		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
 	}
 	if !strings.HasPrefix(out.String(), "committed uncommitted vault changes first: snapshot ") {
 		t.Errorf("stdout = %s", out.String())
 	}
 	out.Reset()
-	if code := run([]string{"apply", "--vault", r.Dir, "--json", "--branch", "curate/three", "--worktree-root", t.TempDir(), testPlan}, &out, &errOut); code != 0 {
+	if code := run([]string{"apply", "--vault", r.Dir, "--json", "--branch", "curate/three", "--worktree-root", t.TempDir(), reviewedPlan(t, r.Dir)}, &out, &errOut); code != 0 {
 		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
 	}
 	if strings.Contains(out.String(), `"snapshot"`) {

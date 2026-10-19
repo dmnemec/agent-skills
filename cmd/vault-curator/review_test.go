@@ -25,6 +25,26 @@ func pendingPlan(t *testing.T) string {
 	return p
 }
 
+// reviewedPlan takes the example plan through the real review and sync
+// commands against vaultDir with every decision approved, and returns its
+// path.
+func reviewedPlan(t *testing.T, vaultDir string) string {
+	t.Helper()
+	planPath := pendingPlan(t)
+	reviewPath := strings.TrimSuffix(planPath, ".json") + ".review.md"
+	cli(t, "review", "--vault", vaultDir, planPath)
+	doc, err := os.ReadFile(reviewPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc = bytes.ReplaceAll(doc, []byte("status: pending"), []byte("status: approved"))
+	if err := os.WriteFile(reviewPath, doc, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cli(t, "review", "--sync", reviewPath, planPath)
+	return planPath
+}
+
 func TestReviewRenderAndSync(t *testing.T) {
 	planPath := pendingPlan(t)
 	reviewPath := strings.TrimSuffix(planPath, ".json") + ".review.md"
@@ -86,6 +106,9 @@ func TestReviewRenderAndSync(t *testing.T) {
 	}
 	if code := run([]string{"validate", "--vault", testVault, planPath}, &out, &errOut); code != 0 {
 		t.Errorf("synced plan fails validate: %s", errOut.String())
+	}
+	if p.Review == nil || len(p.Review.PlanSHA256) != 64 || len(p.Review.StatusesSHA256) != 64 {
+		t.Errorf("synced plan has no review stamp: %+v", p.Review)
 	}
 }
 

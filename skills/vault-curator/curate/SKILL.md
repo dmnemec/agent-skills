@@ -53,7 +53,7 @@ Done when every category and every `approve-each` operation has an answer from t
 
 ## 7. Record the decisions
 
-Write the answers into the review's `status:` lines yourself (`approved` or `rejected`; format in docs/cli.md under "Status lines"). Then run `vault-curator review --sync <review> <plan>`.
+Write the answers into the review's `status:` lines yourself (`approved` or `rejected`; format in docs/cli.md under "Status lines"). Then run `vault-curator review --sync <review> <plan>`, which also stamps the plan as reviewed; `apply` refuses a plan whose statuses were not synced, so never write statuses into the plan yourself.
 
 Done when sync exits 0 and the plan holds the statuses. If sync refuses because an operation is still pending, ask the user about it. If it refuses because the plan changed, render again with `--force` and return to step 6.
 

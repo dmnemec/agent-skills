@@ -45,7 +45,7 @@ func TestApplyKeepOnlyMarksNotes(t *testing.T) {
 	}
 
 	p := &plan.Plan{Version: plan.Version, Operations: keepOps(kept...)}
-	res, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestApplyKeepWithWritesMarksBoth(t *testing.T) {
 	r := gittest.Vault(t)
 	p := loadPlan(t)
 	p.Operations = append(p.Operations, keepOps("daily/2026-09-15.md")...)
-	res, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestApplyRefusesKeepWithChangeOnSameNote(t *testing.T) {
 	r := gittest.Vault(t)
 	p := loadPlan(t)
 	p.Operations = append(p.Operations, keepOps("daily/2026-09-14.md")...)
-	_, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	_, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if _, ok := err.(*InvalidPlanError); !ok {
 		t.Fatalf("err = %v, want InvalidPlanError", err)
 	}

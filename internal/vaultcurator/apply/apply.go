@@ -20,6 +20,7 @@ import (
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/gitx"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/note"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/plan"
+	"github.com/dmnemec/agent-skills/internal/vaultcurator/review"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/scan"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/state"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/vault"
@@ -64,6 +65,9 @@ type Options struct {
 	Now func() time.Time
 	// Vault configures loading the vault for validation.
 	Vault vault.Options
+	// SkipReviewCheckForTests makes Apply accept a plan without a valid
+	// review stamp. For Go tests only: there is deliberately no CLI flag.
+	SkipReviewCheckForTests bool
 }
 
 // Result describes a successful apply.
@@ -111,7 +115,8 @@ var afterWrite func(i int, path string) error
 // (gitx.ErrStagedOutside), since the snapshot would sweep them in.
 //
 // It refuses, before creating anything, when the plan is invalid
-// (*InvalidPlanError) or changes nothing (ErrNoChanges). Any failure after
+// (*InvalidPlanError), lacks a matching review stamp (review.ErrNotReviewed)
+// or changes nothing (ErrNoChanges). Any failure after
 // the snapshot removes the worktree and branch; the snapshot commit stays.
 func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error) {
 	repo, err := gitx.Open(vaultDir)
@@ -126,6 +131,11 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 	r := plan.Validate(v, p, plan.Options{Ignored: ignoreChecker(repo)})
 	if !r.OK() {
 		return nil, &InvalidPlanError{Errors: r.Errors}
+	}
+	if !opts.SkipReviewCheckForTests {
+		if err := review.Verify(p); err != nil {
+			return nil, err
+		}
 	}
 	if len(r.Changes) == 0 && len(r.Kept) == 0 {
 		return nil, ErrNoChanges

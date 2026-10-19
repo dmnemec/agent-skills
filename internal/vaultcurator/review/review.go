@@ -14,7 +14,9 @@
 // approve-each operation never does: it needs its own approved or rejected,
 // and sync fails while one is still pending. A comment at the top records the
 // plan's hash, so a review cannot be synced into a plan that changed since it
-// was rendered.
+// was rendered. Sync also stamps the plan (plan.ReviewStamp) and Verify
+// checks the stamp, which is how apply knows the statuses came from a synced
+// review.
 package review
 
 import (
@@ -61,11 +63,12 @@ var categories = []struct {
 
 var statuses = []plan.Status{plan.Pending, plan.Approved, plan.Rejected}
 
-// Hash identifies everything in p except its statuses, so syncing a review
+// Hash identifies everything in p except its statuses and review stamp, so syncing a review
 // (which changes only statuses) keeps the hash, and any other change to the
 // plan does not.
 func Hash(p *plan.Plan) (string, error) {
 	q := *p
+	q.Review = nil
 	q.Operations = append([]plan.Operation(nil), p.Operations...)
 	for i := range q.Operations {
 		q.Operations[i].Status = ""
@@ -76,6 +79,51 @@ func Hash(p *plan.Plan) (string, error) {
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// StatusesHash identifies the (operation id, status) pairs of p, in plan
+// order.
+func StatusesHash(p *plan.Plan) string {
+	h := sha256.New()
+	for _, op := range p.Operations {
+		fmt.Fprintf(h, "%s\t%s\n", op.ID, op.Status)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// Stamp returns the stamp for p as it stands.
+func Stamp(p *plan.Plan) (*plan.ReviewStamp, error) {
+	hash, err := Hash(p)
+	if err != nil {
+		return nil, err
+	}
+	return &plan.ReviewStamp{PlanSHA256: hash, StatusesSHA256: StatusesHash(p)}, nil
+}
+
+// ErrNotReviewed is returned by Verify when the plan's review stamp is
+// missing or does not match the plan.
+var ErrNotReviewed = errors.New("plan was not reviewed")
+
+// Verify checks that p carries the stamp Sync wrote for its current
+// operations and statuses. A missing stamp, a plan changed after the review,
+// or a status edited after the sync all fail with an error wrapping
+// ErrNotReviewed.
+func Verify(p *plan.Plan) error {
+	const fix = "run `vault-curator review` to render a review, the user decides in it, then `vault-curator review --sync` to write the decisions into the plan"
+	if p.Review == nil {
+		return fmt.Errorf("%w: the plan has no review stamp; %s", ErrNotReviewed, fix)
+	}
+	want, err := Stamp(p)
+	if err != nil {
+		return err
+	}
+	switch {
+	case p.Review.PlanSHA256 != want.PlanSHA256:
+		return fmt.Errorf("%w: the plan changed after its review; %s", ErrNotReviewed, fix)
+	case p.Review.StatusesSHA256 != want.StatusesSHA256:
+		return fmt.Errorf("%w: a status changed after the review was synced; %s", ErrNotReviewed, fix)
+	}
+	return nil
 }
 
 const headerFormat = "<!-- vault-curator review plan-sha256=%s -->"
@@ -573,6 +621,11 @@ func Sync(doc []byte, p *plan.Plan) error {
 			op.Status = catMarks[op.Category].status
 		}
 	}
+	stamp, err := Stamp(p)
+	if err != nil {
+		return err
+	}
+	p.Review = stamp
 	return nil
 }
 

@@ -107,7 +107,7 @@ func TestApplyExamplePlan(t *testing.T) {
 	p := loadPlan(t)
 	root := t.TempDir()
 
-	res, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: root})
+	res, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestApplyExamplePlan(t *testing.T) {
 
 func TestApplyDefaultBranchName(t *testing.T) {
 	r := gittest.Vault(t)
-	res, err := Apply(r.Dir, loadPlan(t), Options{WorktreeRoot: t.TempDir()})
+	res, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestApplyVaultInSubfolder(t *testing.T) {
 	gittest.Commit(t, r, "initial")
 	v := &gitx.Repo{Dir: filepath.Join(r.Dir, "notes"), Env: r.Env}
 
-	res, err := Apply(v.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(v.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func TestApplyRefusesInvalidPlan(t *testing.T) {
 	p := loadPlan(t)
 	p.Operations[0].Status = plan.Pending
 
-	_, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: root})
+	_, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root})
 	var inv *InvalidPlanError
 	if !errors.As(err, &inv) || len(inv.Errors) == 0 {
 		t.Fatalf("err = %v, want InvalidPlanError", err)
@@ -246,7 +246,7 @@ func TestApplyRefusesNoChanges(t *testing.T) {
 	for i := range p.Operations {
 		p.Operations[i].Status = plan.Rejected
 	}
-	if _, err := Apply(r.Dir, p, Options{WorktreeRoot: t.TempDir()}); !errors.Is(err, ErrNoChanges) {
+	if _, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, WorktreeRoot: t.TempDir()}); !errors.Is(err, ErrNoChanges) {
 		t.Fatalf("err = %v, want ErrNoChanges", err)
 	}
 }
@@ -265,7 +265,7 @@ func TestApplySnapshotsDirtyVault(t *testing.T) {
 	dirty(t, r)
 	before, old := snapshot(t, r.Dir), head(t, r)
 
-	res, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +306,7 @@ func TestApplySnapshotsDirtyVault(t *testing.T) {
 func TestApplyCleanVaultMakesNoSnapshot(t *testing.T) {
 	r := gittest.Vault(t)
 	base := head(t, r)
-	res, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +332,7 @@ func TestApplySnapshotLeavesOutsideChanges(t *testing.T) {
 	gittest.AppendFile(t, r, "README.md", "unstaged outside\n")
 	gittest.WriteFile(t, r, "outside.txt", "untracked outside\n")
 
-	res, err := Apply(v.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(v.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -351,7 +351,7 @@ func TestApplyRefusesStagedOutsideVault(t *testing.T) {
 	run(t, r, "add", "README.md")
 	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
 
-	_, err := Apply(v.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: root})
+	_, err := Apply(v.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root})
 	if !errors.Is(err, gitx.ErrStagedOutside) || !strings.Contains(err.Error(), "README.md") {
 		t.Fatalf("err = %v, want ErrStagedOutside naming README.md", err)
 	}
@@ -370,7 +370,7 @@ func TestApplyInvalidPlanLeavesDirtyVault(t *testing.T) {
 	p.Operations[0].Status = plan.Pending
 
 	var inv *InvalidPlanError
-	if _, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: root}); !errors.As(err, &inv) {
+	if _, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root}); !errors.As(err, &inv) {
 		t.Fatalf("err = %v, want InvalidPlanError", err)
 	}
 	requireNoTrace(t, r, root, before, base)
@@ -388,7 +388,7 @@ func TestApplyFailingSnapshotHook(t *testing.T) {
 	}
 	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
 	status := run(t, r, "status", "--porcelain")
-	_, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: root})
+	_, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root})
 	if err == nil || !strings.Contains(err.Error(), "snapshot commit") || !strings.Contains(err.Error(), "hook says no") {
 		t.Fatalf("err = %v", err)
 	}
@@ -401,7 +401,7 @@ func TestApplyFailingSnapshotHook(t *testing.T) {
 func TestApplyRefusesExistingBranch(t *testing.T) {
 	r := gittest.Vault(t)
 	run(t, r, "branch", testBranch)
-	_, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	_, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Fatalf("err = %v", err)
 	}
@@ -409,7 +409,7 @@ func TestApplyRefusesExistingBranch(t *testing.T) {
 
 func TestApplyRefusesWorktreeInsideRepo(t *testing.T) {
 	r := gittest.Vault(t)
-	_, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: filepath.Join(r.Dir, "daily")})
+	_, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: filepath.Join(r.Dir, "daily")})
 	if err == nil || !strings.Contains(err.Error(), "inside the repo") {
 		t.Fatalf("err = %v", err)
 	}
@@ -429,7 +429,7 @@ func TestApplyFailureMidwayLeavesNoTrace(t *testing.T) {
 	}
 	t.Cleanup(func() { afterWrite = nil })
 
-	_, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: root})
+	_, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root})
 	if !errors.Is(err, injected) {
 		t.Fatalf("err = %v, want injected failure", err)
 	}
@@ -447,7 +447,7 @@ func TestApplyFailingCommitHookLeavesNoTrace(t *testing.T) {
 	}
 	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
 
-	_, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: root})
+	_, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root})
 	if err == nil || !strings.Contains(err.Error(), "hook says no") {
 		t.Fatalf("err = %v, want the hook's failure", err)
 	}
@@ -458,7 +458,7 @@ func TestApplyFailingCommitHookLeavesNoTrace(t *testing.T) {
 // with a merge commit.
 func applyAndMerge(t *testing.T, r *gitx.Repo) *Result {
 	t.Helper()
-	res, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -512,7 +512,7 @@ func TestWatermarkAfterMerge(t *testing.T) {
 
 func TestWatermarkKeepsMainSideChanges(t *testing.T) {
 	r := gittest.Vault(t)
-	if _, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()}); err != nil {
+	if _, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()}); err != nil {
 		t.Fatal(err)
 	}
 	// A scheduled sync commits a note edited while the branch waits.
@@ -543,7 +543,7 @@ func TestWatermarkKeepsMainSideChanges(t *testing.T) {
 
 func TestWatermarkRefusesUnmerged(t *testing.T) {
 	r := gittest.Vault(t)
-	res, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -572,7 +572,7 @@ func TestWatermarkRefusesNoBranch(t *testing.T) {
 
 func TestWatermarkRefusesFromWorktree(t *testing.T) {
 	r := gittest.Vault(t)
-	res, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	res, err := Apply(r.Dir, loadPlan(t), Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -631,7 +631,7 @@ func TestApplyRefusesSplitIntoIgnoredPath(t *testing.T) {
 	p := ignoredPlan(t, r)
 	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
 
-	_, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: root})
+	_, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root})
 	var inv *InvalidPlanError
 	if !errors.As(err, &inv) {
 		t.Fatalf("err = %v, want InvalidPlanError", err)
@@ -649,7 +649,7 @@ func TestApplyPostCommitCheckCatchesIgnoredPath(t *testing.T) {
 	ignoreChecker = func(*gitx.Repo) func(string) (bool, error) { return nil }
 	t.Cleanup(func() { ignoreChecker = func(r *gitx.Repo) func(string) (bool, error) { return r.IsIgnored } })
 
-	_, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: root})
+	_, err := Apply(r.Dir, p, Options{SkipReviewCheckForTests: true, Branch: testBranch, WorktreeRoot: root})
 	if err == nil || !strings.Contains(err.Error(), "private/Harbor standup.md") {
 		t.Fatalf("err = %v, want missing-from-commit error naming the path", err)
 	}
