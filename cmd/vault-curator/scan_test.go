@@ -85,6 +85,25 @@ func TestScanText(t *testing.T) {
 	}
 }
 
+func TestScanAllLimitFlags(t *testing.T) {
+	r := scanFixture(t)
+	var out, errOut bytes.Buffer
+	// Every block is processed in the fixture except the appended one.
+	if code := run([]string{"scan", "--vault", r.Dir, "--json", "--all", "--limit", "2"}, &out, &errOut); code != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", code, errOut.String())
+	}
+	var res scan.Result
+	if err := json.Unmarshal(out.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Candidates) != 1 || res.Candidates[0].Path != "daily/2026-09-18.md" || res.Remaining != 0 {
+		t.Errorf("--all: candidates %+v, remaining %d", res.Candidates, res.Remaining)
+	}
+	if code := run([]string{"scan", "--vault", r.Dir, "--limit", "-1"}, &out, &errOut); code != 2 {
+		t.Errorf("negative --limit: exit code = %d, want 2", code)
+	}
+}
+
 func TestScanErrors(t *testing.T) {
 	var out, errOut bytes.Buffer
 	if code := run([]string{"scan", "--vault", t.TempDir()}, &out, &errOut); code != 1 {

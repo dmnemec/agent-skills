@@ -173,6 +173,157 @@ func TestGraphContext(t *testing.T) {
 	}
 }
 
+func paths(r *scan.Result) []string {
+	var out []string
+	for _, c := range r.Candidates {
+		out = append(out, c.Path)
+	}
+	return out
+}
+
+// partlyProcessed is a tagged repo where only the notes named in done are
+// processed, committed and watermarked, so the rest are unchanged since the
+// tag but still have unprocessed blocks.
+func partlyProcessed(t *testing.T, done map[string]bool) *gitx.Repo {
+	t.Helper()
+	r := gittest.Vault(t)
+	all, err := scan.Run(r.Dir, scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := state.New()
+	for _, n := range all.Vault.Notes {
+		if done[n.Path] {
+			st.MarkNote(n)
+		}
+	}
+	if err := st.Save(r.Dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetTag(gitx.WatermarkTag, gittest.Commit(t, r, "curate")); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func TestAllListsNotesWithUnprocessedBlocks(t *testing.T) {
+	done := map[string]bool{daily: true, "daily/2026-09-14.md": true}
+	r := partlyProcessed(t, done)
+
+	plain, err := scan.Run(r.Dir, scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plain.Candidates) != 0 {
+		t.Fatalf("plain scan after the tag lists %v, want none", paths(plain))
+	}
+
+	res, err := scan.Run(r.Dir, scan.Options{All: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Remaining != 0 {
+		t.Errorf("Remaining = %d, want 0", res.Remaining)
+	}
+	for _, c := range res.Candidates {
+		if done[c.Path] {
+			t.Errorf("processed note %s is a candidate", c.Path)
+		}
+		if len(c.NewBlocks) == 0 {
+			t.Errorf("%s has no unprocessed block", c.Path)
+		}
+	}
+	// Exactly the notes that have blocks and are not done.
+	want := 0
+	for _, n := range res.Vault.Notes {
+		if !done[n.Path] && len(res.State.NewBlocks(n)) > 0 {
+			want++
+		}
+	}
+	if want == 0 || len(res.Candidates) != want {
+		t.Errorf("got %d candidates (%v), want %d", len(res.Candidates), paths(res), want)
+	}
+	for i := 1; i < len(res.Candidates); i++ {
+		if res.Candidates[i-1].Path >= res.Candidates[i].Path {
+			t.Errorf("candidates not sorted by path: %v", paths(res))
+		}
+	}
+}
+
+func TestAllLimitBatchesProgress(t *testing.T) {
+	r := partlyProcessed(t, nil)
+	full, err := scan.Run(r.Dir, scan.Options{All: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	total := len(full.Candidates)
+	if total < 4 {
+		t.Fatalf("fixture has %d unprocessed notes, need at least 4", total)
+	}
+
+	seen := map[string]bool{}
+	left := total
+	for batches := 0; left > 0; batches++ {
+		if batches > total {
+			t.Fatal("backfill does not terminate")
+		}
+		res, err := scan.Run(r.Dir, scan.Options{All: true, Limit: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res.Candidates) > 2 || len(res.Candidates) == 0 {
+			t.Fatalf("batch has %d candidates, want 1 or 2", len(res.Candidates))
+		}
+		if res.Remaining != left-len(res.Candidates) {
+			t.Errorf("Remaining = %d, want %d", res.Remaining, left-len(res.Candidates))
+		}
+		if batches == 0 {
+			for i, c := range res.Candidates {
+				if c.Path != full.Candidates[i].Path {
+					t.Errorf("first batch not the first paths in order: %v", paths(res))
+				}
+			}
+		}
+		// Simulate applying the batch: mark its notes processed.
+		st, err := state.Load(r.Dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range res.Candidates {
+			if seen[c.Path] {
+				t.Errorf("%s offered twice", c.Path)
+			}
+			seen[c.Path] = true
+			st.MarkNote(res.Vault.Note(c.Path))
+		}
+		if err := st.Save(r.Dir); err != nil {
+			t.Fatal(err)
+		}
+		left = res.Remaining
+	}
+	if len(seen) != total {
+		t.Errorf("batches covered %d notes, want %d", len(seen), total)
+	}
+	done, err := scan.Run(r.Dir, scan.Options{All: true, Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(done.Candidates) != 0 || done.Remaining != 0 {
+		t.Errorf("after backfill: %v remaining %d, want none", paths(done), done.Remaining)
+	}
+}
+
+func TestLimitWithoutAll(t *testing.T) {
+	r := gittest.Vault(t)
+	res, err := scan.Run(r.Dir, scan.Options{Limit: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Candidates) != 3 || res.Remaining <= 0 {
+		t.Errorf("got %d candidates, remaining %d", len(res.Candidates), res.Remaining)
+	}
+}
+
 func TestNotARepo(t *testing.T) {
 	if _, err := scan.Run(t.TempDir(), scan.Options{}); !errors.Is(err, gitx.ErrNotRepo) {
 		t.Errorf("err = %v, want ErrNotRepo", err)
