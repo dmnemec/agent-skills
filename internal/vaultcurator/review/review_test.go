@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -99,6 +100,9 @@ func TestRoundTrip(t *testing.T) {
 	// frontmatter, reject the links category, and make hand edits elsewhere.
 	doc = edit(t, doc, "- category `split` status: pending", "- category `split` status: approved")
 	doc = edit(t, doc, "- op `split-beacon` status: pending", "- op `split-beacon` status: Rejected")
+	for _, id := range []string{"split-standup", "split-retry", "split-teodor"} {
+		doc = edit(t, doc, "- op `"+id+"` status: pending", "- op `"+id+"` status: approved")
+	}
 	doc = edit(t, doc, "- category `entity` status: pending", "- category `entity` status: approved")
 	doc = edit(t, doc, "- op `entity-teodor` status: pending", "* op `entity-teodor` status:approved")
 	doc = edit(t, doc, "- category `frontmatter` status: pending", "- category `frontmatter`   status: approved  ")
@@ -155,17 +159,46 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-func TestPendingOpFollowsCategory(t *testing.T) {
+// approveEach approves every approve-each operation line in doc.
+func approveEach(doc string) string {
+	return regexp.MustCompile("(?m)^(- op `[^`]+` status: )pending").ReplaceAllString(doc, "${1}approved")
+}
+
+func TestAutoOpsFollowCategory(t *testing.T) {
 	v, p := pendingExample(t)
 	doc := render(t, v, p)
+	doc = approveEach(doc)
 	doc = edit(t, doc, "- category `split` status: pending", "- category `split` status: rejected")
-	doc = edit(t, doc, "- op `split-retry` status: pending", "- op `split-retry` status: approved")
+	doc = edit(t, doc, "- category `entity` status: pending", "- category `entity` status: rejected")
+	doc = edit(t, doc, "- category `frontmatter` status: pending", "- category `frontmatter` status: approved")
+	doc = edit(t, doc, "- category `links` status: pending", "- category `links` status: rejected")
 	if err := Sync([]byte(doc), p); err != nil {
 		t.Fatal(err)
 	}
 	got := statusesOf(p)
-	if got["split-retry"] != plan.Approved || got["split-standup"] != plan.Rejected || got["fm-daily"] != plan.Pending {
+	// Auto ops follow their category; approve-each ops keep their own status.
+	if got["fm-daily"] != plan.Approved || got["links-coffee"] != plan.Rejected || got["split-standup"] != plan.Approved {
 		t.Errorf("statuses = %v", got)
+	}
+}
+
+func TestPendingApproveEachFailsSync(t *testing.T) {
+	v, p := pendingExample(t)
+	doc := render(t, v, p)
+	// Every category is approved, but three approve-each ops are undecided.
+	for _, cat := range []string{"split", "entity", "frontmatter", "links"} {
+		doc = edit(t, doc, "- category `"+cat+"` status: pending", "- category `"+cat+"` status: approved")
+	}
+	doc = edit(t, doc, "- op `split-standup` status: pending", "- op `split-standup` status: approved")
+	doc = edit(t, doc, "- op `split-retry` status: pending", "- op `split-retry` status: rejected")
+	err := Sync([]byte(doc), p)
+	if err == nil || !strings.Contains(err.Error(), "still pending: split-beacon, split-teodor, entity-teodor") {
+		t.Fatalf("err = %v, want the pending approve-each ops named", err)
+	}
+	for _, op := range p.Operations {
+		if op.Status != plan.Pending {
+			t.Errorf("failed sync changed %s to %s", op.ID, op.Status)
+		}
 	}
 }
 
@@ -177,6 +210,7 @@ func TestStatusLinesInCodeAreIgnored(t *testing.T) {
 		t.Fatalf("content with a fence is not fenced with a longer fence:\n%s", doc)
 	}
 	doc = edit(t, doc, "- category `split` status: pending", "- category `split` status: approved")
+	doc = approveEach(doc)
 	if err := Sync([]byte(doc), p); err != nil {
 		t.Fatal(err)
 	}

@@ -98,6 +98,9 @@ func TestCurateEndToEnd(t *testing.T) {
 	// The user approves every category.
 	status := regexp.MustCompile("(?m)^(- category `[a-z-]+` status: )pending\r?$")
 	approved := status.ReplaceAll(review, []byte("${1}approved"))
+	// Approve-each operations are decided one by one.
+	opStatus := regexp.MustCompile("(?m)^(- op `[^`]+` status: )pending\r?$")
+	approved = opStatus.ReplaceAll(approved, []byte("${1}approved"))
 	if bytes.Equal(approved, review) {
 		t.Fatal("review has no pending category line")
 	}

@@ -8,11 +8,13 @@
 //   - category `split` status: pending
 //   - op `split-beacon` status: rejected
 //
-// Sync reads only these lines, outside fenced code. An operation whose own
-// status is pending (or which has no line, as auto operations usually do)
-// takes its category's status, so the user approves a category and then
-// marks the exceptions. A comment at the top records the plan's hash, so a
-// review cannot be synced into a plan that changed since it was rendered.
+// Sync reads only these lines, outside fenced code. An auto operation whose
+// own status is pending (or which has no line) takes its category's status,
+// so the user approves a category and then marks the exceptions. An
+// approve-each operation never does: it needs its own approved or rejected,
+// and sync fails while one is still pending. A comment at the top records the
+// plan's hash, so a review cannot be synced into a plan that changed since it
+// was rendered.
 package review
 
 import (
@@ -151,8 +153,10 @@ func (w *writer) header(p *plan.Plan, hash string, opts Options) {
 	w.f(headerFormat+"\n", hash)
 	w.f("# Curation review: %s\n\n", path.Base(filepath.ToSlash(opts.PlanPath)))
 	w.f("Decide each change by setting its `status:` to `approved` or `rejected`. ")
-	w.f("A category's status applies to every operation in it whose own status is `pending`, ")
+	w.f("A category's status decides its auto operations (listed as decided by the category status), ")
 	w.f("so approve a category and then reject the exceptions. ")
+	w.f("Every other operation has its own `op` line and is decided one by one: ")
+	w.f("sync fails until each is `approved` or `rejected`, whatever its category says. ")
 	w.f("Only the `status:` lines are read back; other edits are ignored. ")
 	w.f("Then write the decisions into the plan:\n\n")
 	w.f("```sh\nvault-curator review --sync %s %s\n```\n\n", shellQuote(opts.ReviewPath), shellQuote(opts.PlanPath))
@@ -539,10 +543,21 @@ func Sync(doc []byte, p *plan.Plan) error {
 	for _, c := range missing {
 		failf(0, "category %s has no status line", c)
 	}
+	var undecided []string
 	for _, op := range p.Operations {
-		if _, ok := ops[op.ID]; !ok && op.Tier != plan.TierAuto {
-			failf(0, "op %s is approve-each but has no status line", op.ID)
+		if op.Tier == plan.TierAuto {
+			continue
 		}
+		mk, ok := ops[op.ID]
+		switch {
+		case !ok:
+			failf(0, "op %s is approve-each but has no status line", op.ID)
+		case mk.status == plan.Pending:
+			undecided = append(undecided, op.ID)
+		}
+	}
+	if len(undecided) > 0 {
+		failf(0, "approve-each operations need their own approved or rejected, a category status does not decide them; still pending: %s", strings.Join(undecided, ", "))
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
