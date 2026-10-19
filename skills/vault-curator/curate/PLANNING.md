@@ -18,7 +18,7 @@ Each split yields a new note titled `<date> <topic>` (a path such as `meetings/2
 
 ## Restructure inside a note
 
-Repair indentation, group points under `## Notes`, `## Decisions`, `## Constraints and requirements`, `## Open questions` and `## Action items`, and move each decision, constraint, open question or action item into its section out of the body. Keep every original heading and prose line, including a plain title line such as `harbor beta planning`: a rewrite's `content` must contain each one (turning it into a heading is fine; its words stay), and the plan lists no source for them. Reword nothing; add links around existing words (`[[Tidegate|tidegate]]`). Keep Mermaid blocks byte for byte. Leave `- [ ]` and `- [x]` as they are.
+Repair indentation, group points under `## Notes`, `## Decisions`, `## Constraints and requirements`, `## Open questions` and `## Action items`, and move each decision, constraint, open question or action item into its section out of the body. Keep every original heading and prose line, including a plain title line such as `harbor beta planning`: a rewrite's `content` must contain each one (turning it into a heading is fine; its words stay), and the plan lists no source for them. Reword nothing; add links around existing words (`[[Tidegate|tidegate]]`). Add no line except a heading or a link-only bullet: a new sentence, even a summary, is invented content. Copy the frontmatter byte for byte; to change it, add a `set_frontmatter` on the same note. Copy code fences exactly, indentation and case included, and Mermaid blocks byte for byte. Keep every existing link's target and URL; retargeting a link needs tier `approve-each`. Leave `- [ ]` and `- [x]` as they are.
 
 ## Primary versus mention
 
@@ -34,7 +34,7 @@ For each orphan in the scan, propose `add_links` to the best-fit hub and say why
 
 ## Frontmatter
 
-`type`, `date`, `project`/`topics`, `aliases` and the rest are defined in design.md "Note model"; the plan's `set_frontmatter` field rules are in docs/plan.md. Set only fields you can justify from the note.
+`type`, `date`, `project`/`topics`, `aliases` and the rest are defined in design.md "Note model"; the plan's `set_frontmatter` field rules are in docs/plan.md. Set only fields you can justify from the note. A `set_frontmatter` that sets or removes a typed edge (`depends-on`, `owned-by`, `calls`, `part-of`, `related-to`), `supersedes` or `aliases` must be `approve-each`; keep those fields in their own operation so routine fields such as `type` and `date` stay `auto`.
 
 ## Keep
 

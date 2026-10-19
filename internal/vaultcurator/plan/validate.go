@@ -258,6 +258,9 @@ func (c *checker) checkShape(op *Operation) bool {
 		c.fail(op, "", 0, "tier %q must be auto or approve-each", op.Tier)
 		okay = false
 	}
+	if !c.checkFieldTiers(op) {
+		okay = false
+	}
 	need := func(set bool, field string) {
 		if !set {
 			c.fail(op, "", 0, "op %s needs %q", op.Op, field)
@@ -362,6 +365,34 @@ func (c *checker) checkShape(op *Operation) bool {
 		}
 	}
 	return okay
+}
+
+// approveEachFields are the frontmatter fields a set_frontmatter may touch
+// only at tier approve-each (design.md, "Autonomy tiers"): typed edges,
+// supersedes links and aliases, which change the graph and what links
+// resolve to.
+var approveEachFields = map[string]bool{
+	"depends-on": true, "owned-by": true, "calls": true, "part-of": true, "related-to": true,
+	"supersedes": true, "aliases": true,
+}
+
+// checkFieldTiers rejects an auto set_frontmatter that sets or removes an
+// approveEachFields field.
+func (c *checker) checkFieldTiers(op *Operation) bool {
+	if op.Op != SetFrontmatter || op.Tier != TierAuto {
+		return true
+	}
+	var keys []string
+	for k := range op.Frontmatter {
+		if approveEachFields[strings.ToLower(strings.TrimSpace(k))] {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		c.fail(op, "", 0, "frontmatter field %s requires tier approve-each (typed edges, supersedes and aliases are approved one by one)", k)
+	}
+	return len(keys) == 0
 }
 
 // forbiddenChars are not allowed in Obsidian file names (and some not on
@@ -815,12 +846,15 @@ func (c *checker) checkLossless() {
 					}
 				}
 			}
+			c.checkFrontmatterKept(op, n, dn)
 			c.checkProse(op, n, dn)
 			for _, seg := range n.Segments {
 				if seg.Kind == note.KindMermaid && !strings.Contains(op.Content, n.SegmentText(seg)) {
 					c.fail(op, n.Path, seg.StartLine, "mermaid diagram at lines %d-%d is not preserved byte for byte", seg.StartLine, seg.EndLine)
 				}
 			}
+			c.checkAddedSegments(op, n, dn)
+			c.checkRewriteLinks(op, n, dn)
 		}
 		if op.Op == Split {
 			c.checkSplitLink(op)
@@ -831,10 +865,13 @@ func (c *checker) checkLossless() {
 // proseLine is one non-bullet line of a note: a heading, a prose line or a
 // line of an ordinary code fence.
 type proseLine struct {
-	line    int
-	text    string // the raw line
-	key     string // matchKey of the line; a heading's key is its text only
+	line int
+	text string // the raw line
+	// key is the matchKey of the line; a heading's key is its text only, and
+	// a code line's is its codeKey.
+	key     string
 	heading bool
+	code    bool
 }
 
 // proseLines returns the non-blank lines of n outside frontmatter, bullet
@@ -855,7 +892,9 @@ func proseLines(n *note.Note) []proseLine {
 				continue
 			}
 			pl := proseLine{line: seg.StartLine + i, text: ln, key: matchKey(ln)}
-			if h, ok := headings[pl.line]; ok {
+			if seg.Kind == note.KindCode {
+				pl.code, pl.key = true, codeKey(ln)
+			} else if h, ok := headings[pl.line]; ok {
 				pl.heading, pl.key = true, matchKey(h)
 			}
 			out = append(out, pl)
@@ -864,27 +903,143 @@ func proseLines(n *note.Note) []proseLine {
 	return out
 }
 
-// checkProse checks that a rewrite keeps every original heading and prose
-// line, matched on normalized text like bullets. A prose line may become a
-// heading and the reverse; the heading level is free. Headings and prose the
-// content adds need no source. Bullets, frontmatter, generated blocks and
-// Mermaid diagrams are checked elsewhere.
+// checkProse checks that a rewrite keeps every original heading, prose line
+// and code line, and adds no line but headings. Headings and prose match on
+// normalized text like bullets: a prose line may become a heading and the
+// reverse, and the heading level is free. Lines of an ordinary code fence
+// match exactly, ignoring only trailing whitespace. Any other non-blank line
+// the content adds is invented content. Bullets, frontmatter, generated
+// blocks and Mermaid diagrams are checked elsewhere.
 func (c *checker) checkProse(op *Operation, n, dn *note.Note) {
+	orig, dest := proseLines(n), proseLines(dn)
 	avail := map[string]int{}
-	for _, d := range proseLines(dn) {
+	for _, d := range dest {
 		avail[d.key]++
 	}
-	for _, o := range proseLines(n) {
+	left := map[string]int{}
+	for _, o := range orig {
+		left[o.key]++
 		if o.key == "" || avail[o.key] > 0 {
 			avail[o.key]--
 			continue
 		}
-		what := "line"
-		if o.heading {
-			what = "heading"
+		switch {
+		case o.code:
+			c.fail(op, n.Path, o.line, "code line not found in %s (code must match exactly, ignoring trailing whitespace): %q", n.Path, strings.TrimRight(o.text, " \t"))
+		case o.heading:
+			c.fail(op, n.Path, o.line, "heading not found in %s (dropped or reworded): %q", n.Path, strings.TrimSpace(o.text))
+		default:
+			c.fail(op, n.Path, o.line, "line not found in %s (dropped or reworded): %q", n.Path, strings.TrimSpace(o.text))
 		}
-		c.fail(op, n.Path, o.line, "%s not found in %s (dropped or reworded): %q", what, n.Path, strings.TrimSpace(o.text))
 	}
+	// Lines that are not headings take the original lines first, so a
+	// heading the content adds never leaves a kept line unmatched.
+	for _, d := range dest {
+		if d.heading || d.key == "" {
+			continue
+		}
+		if left[d.key] > 0 {
+			left[d.key]--
+			continue
+		}
+		c.fail(op, dn.Path, d.line, "line maps to no original line; never-tier changes (inventing content) are not permitted, and a rewrite may add only headings: %q", strings.TrimSpace(d.text))
+	}
+}
+
+// checkFrontmatterKept checks that a rewrite leaves the note's frontmatter
+// byte for byte, neither changed, dropped nor added: frontmatter changes go
+// through set_frontmatter, where review shows them field by field.
+func (c *checker) checkFrontmatterKept(op *Operation, n, dn *note.Note) {
+	text := func(n *note.Note) string {
+		if len(n.Segments) > 0 && n.Segments[0].Kind == note.KindFrontmatter {
+			return strings.TrimSuffix(n.SegmentText(n.Segments[0]), "\n")
+		}
+		return ""
+	}
+	if text(n) != text(dn) {
+		c.fail(op, n.Path, 1, "frontmatter is not kept byte for byte; a rewrite leaves frontmatter as it is, so change fields with set_frontmatter")
+	}
+}
+
+// checkAddedSegments rejects Mermaid diagrams and generated blocks that a
+// rewrite's content holds but the original note does not.
+func (c *checker) checkAddedSegments(op *Operation, n, dn *note.Note) {
+	have := map[string]int{}
+	segKey := func(n *note.Note, seg note.Segment) string {
+		return string(seg.Kind) + "\x00" + strings.TrimSuffix(n.SegmentText(seg), "\n")
+	}
+	for _, seg := range n.Segments {
+		if seg.Kind == note.KindMermaid || seg.Kind == note.KindGenerated {
+			have[segKey(n, seg)]++
+		}
+	}
+	for _, seg := range dn.Segments {
+		if seg.Kind != note.KindMermaid && seg.Kind != note.KindGenerated {
+			continue
+		}
+		if k := segKey(dn, seg); have[k] > 0 {
+			have[k]--
+			continue
+		}
+		if seg.Kind == note.KindMermaid {
+			c.fail(op, dn.Path, seg.StartLine, "mermaid diagram at lines %d-%d is not in the original note; never-tier changes (inventing content) are not permitted", seg.StartLine, seg.EndLine)
+		} else {
+			c.fail(op, dn.Path, seg.StartLine, "generated block %s at lines %d-%d is not in the original note; generated blocks are written by vault-curator, not by a plan", seg.Name, seg.StartLine, seg.EndLine)
+		}
+	}
+}
+
+// checkRewriteLinks checks that a rewrite at tier auto keeps every link of
+// the note's body: the same multiset of kind, target, fragment and URL, plus
+// any links the content adds. Labels are checked as text by the lossless
+// match. Retargeting, such as redirecting links in an entity merge, needs
+// tier approve-each, where review shows the operation by itself.
+// Frontmatter links are kept with the frontmatter; links in generated blocks
+// are not the user's.
+func (c *checker) checkRewriteLinks(op *Operation, n, dn *note.Note) {
+	if op.Tier != TierAuto {
+		return
+	}
+	avail := map[string]int{}
+	for _, l := range bodyLinks(dn) {
+		avail[linkKey(l)]++
+	}
+	for _, l := range bodyLinks(n) {
+		if k := linkKey(l); avail[k] > 0 {
+			avail[k]--
+			continue
+		}
+		c.fail(op, n.Path, l.Line, "link %s is changed or removed; a rewrite at tier auto keeps every link's target, heading and URL (retarget links at tier approve-each)", l.Raw)
+	}
+}
+
+// bodyLinks returns n's links outside frontmatter and generated blocks.
+func bodyLinks(n *note.Note) []note.Link {
+	var out []note.Link
+outer:
+	for _, l := range n.Links {
+		if l.InFrontmatter {
+			continue
+		}
+		for _, seg := range n.Segments {
+			if seg.Kind == note.KindGenerated && seg.Start <= l.Start && l.Start < seg.End {
+				continue outer
+			}
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+// linkKey is what a rewrite keeps of a link: kind, embed, target and
+// fragment. A note target matches case-insensitively and with or without
+// .md, as links resolve; an external URL matches exactly.
+func linkKey(l note.Link) string {
+	target := l.Target
+	if !l.External {
+		target = key(target)
+	}
+	return fmt.Sprintf("%s\x00%t\x00%t\x00%s\x00%s", l.Kind, l.Embed, l.External, target, l.Fragment)
 }
 
 // checkSplitLink checks that a split's leftover line links to its new note.
@@ -989,7 +1144,12 @@ func (c *checker) blame(st *state, raw string) *Operation {
 // matchKey is the form the lossless check compares: links are replaced by
 // the text they display, then the text is normalized as for block hashes.
 // Linking a word ("tidegate" to "[[Tidegate|tidegate]]") keeps the key.
+// Lines of a fenced code block (a fence inside a bullet) are not normalized:
+// they are kept as written, less trailing whitespace and the fence's own
+// indentation, so reindenting the bullet keeps the key but changing the
+// code does not.
 func matchKey(text string) string {
+	fenced := note.FencedLines(text)
 	links := note.ParseLinks(text)
 	for i := len(links) - 1; i >= 0; i-- {
 		l := links[i]
@@ -1002,7 +1162,50 @@ func matchKey(text string) string {
 		}
 		text = text[:l.Start] + shown + text[l.End:]
 	}
-	return note.Normalize(text)
+	// Links never span lines, so text still has the lines fenced describes.
+	var parts, prose []string
+	flush := func() {
+		if k := note.Normalize(strings.Join(prose, "\n")); k != "" {
+			parts = append(parts, k)
+		}
+		prose = nil
+	}
+	for i, ln := range strings.Split(text, "\n") {
+		if fenced[i] < 0 {
+			prose = append(prose, ln)
+			continue
+		}
+		flush()
+		parts = append(parts, codeKey(dedent(ln, fenced[i])))
+	}
+	flush()
+	return strings.Join(parts, "\n")
+}
+
+// codeKey is the key of a line of code: the line less trailing whitespace,
+// marked so it never equals the key of a prose line.
+func codeKey(ln string) string {
+	return "\x00" + strings.TrimRightFunc(ln, unicode.IsSpace)
+}
+
+// dedent removes up to col columns of indentation from ln, a tab advancing
+// to the next multiple of 4 as in the note parser.
+func dedent(ln string, col int) string {
+	c := 0
+	for i := 0; i < len(ln); i++ {
+		if c >= col {
+			return ln[i:]
+		}
+		switch ln[i] {
+		case ' ':
+			c++
+		case '\t':
+			c = (c/4 + 1) * 4
+		default:
+			return ln[i:]
+		}
+	}
+	return ""
 }
 
 // linkOnly reports whether bullet text holds at least one link and nothing

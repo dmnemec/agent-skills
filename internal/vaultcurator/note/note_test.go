@@ -313,3 +313,17 @@ func TestNormalize(t *testing.T) {
 		}
 	}
 }
+
+func TestFencedLines(t *testing.T) {
+	text := "- run\n  ```sh\n  make\n\n  ```\nafter\n~~~\nopen"
+	got := FencedLines(text)
+	want := []int{-1, 2, 2, 2, 2, -1, 0, 0}
+	if len(got) != len(want) {
+		t.Fatalf("FencedLines = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("FencedLines = %v, want %v", got, want)
+		}
+	}
+}
