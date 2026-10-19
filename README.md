@@ -19,7 +19,13 @@ The agent proposes a plan, you approve it, and the CLI applies it on a separate 
 
 ### Using vault-curator
 
-Install the `vault-curator` binary and the `curate` skill, point your home-directory `AGENTS.md` at the vault, then ask your agent to curate it. Claude Code steps are in [adapters/claude/README.md](adapters/claude/README.md); the commands are documented in [docs/cli.md](docs/cli.md).
+Paste this into your agent:
+
+```text
+Install vault-curator from https://github.com/dmnemec/agent-skills
+```
+
+The agent follows [INSTALL.md](INSTALL.md): it installs the binary and the skills, finds your vault and records it in your home-directory `AGENTS.md`, and runs a first scan. Then ask it to curate your vault. The commands are documented in [docs/cli.md](docs/cli.md).
 
 The full design is in [docs/design.md](docs/design.md).
 
