@@ -19,7 +19,7 @@ Run `vault-curator version`. Latest is the newest tag from `git ls-remote --tags
 
 - Missing, or older than latest: run `go install github.com/dmnemec/agent-skills/cmd/vault-curator@latest`.
 - `go` missing: tell the user Go 1.24 or newer is needed (https://go.dev/dl/), and stop until they have installed it or asked you to do it.
-- Installed but not on `PATH`: add `$(go env GOPATH)/bin` to `PATH` for this session, and tell the user the line to add to their shell profile.
+- Installed but not on `PATH`: add `$(go env GOPATH)/bin` to `PATH` for this session, then ask the user once whether to add it permanently. With a yes, detect the shell and append the entry yourself: the bash or zsh profile (`~/.zshrc`, `~/.bashrc`) on macOS and Linux; the PowerShell `$PROFILE` or the user `PATH` environment variable on Windows. Skip the append when the profile already contains the entry. Announce which file or variable changed.
 
 Done when `vault-curator version` exits 0 and prints a version at least as new as latest. A `dev` build counts as current.
 
