@@ -214,6 +214,16 @@ The heuristic finds names, not their kind. Whether a candidate is a person, proj
 
 `blocks` lists every top-level block of the linking note, which a `rewrite` of that note must map as sources (see [plan.md](plan.md)). `scan` lists blocks only for notes changed since the watermark, so a linking note that has not changed is found here.
 
+## validate
+
+Checks a plan without changing anything (see [Checks](plan.md#checks) for the full list). One check needs git: a `split` or `create` into a path git ignores (for example under a folder in `.gitignore`) fails, because the note would never be committed and would be lost when the worktree is deleted:
+
+```
+op split-standup: private/Harbor standup.md: path is ignored by git, so the note would not be committed
+```
+
+`review` and `apply` run the same check. It is skipped when the vault is not in a git repo.
+
 ## review
 
 ```
@@ -276,8 +286,9 @@ Carries out a reviewed plan without touching the vault's working tree, so nothin
 3. **Creates a worktree** on a new branch starting at `HEAD` (the snapshot, if any). The branch is `--branch`, default `curate/<UTC time>` such as `curate/20261018-142501`; an existing branch is an error. The worktree is `<root>/vault-curator-<random>/<branch with / as ->`, where `<root>` is `--worktree-root` (default the OS temp folder). It must be outside the repo, so it is never inside the vault.
 4. **Writes** each changed note's post-plan content, after checking every note still matches what was validated. Each written note's blocks are recorded as processed in `.vault-curator/state.json` (see [State file](#state-file)), and so is every block of each note an approved `keep` names, which changes no content. A plan of only `keep` operations writes just the state file.
 5. **Commits** everything in the worktree as `curate: apply plan to N notes` (`curate: keep N notes as is` when nothing is written), with one line per note in the body. The vault's git hooks run; a failing hook fails apply.
+6. **Verifies the commit.** Every path written (each changed note and `.vault-curator/state.json`) must be in the commit's tree (`git ls-tree`). A missing path, such as one git ignores, is an error: `written but not in the commit (ignored by git?): <paths>`.
 
-Any failure after step 2 removes the worktree, its folder and the branch, so a failed apply leaves nothing but the snapshot commit, which holds only the user's own edits.
+Any failure after step 2, including a failed verification in step 6, removes the worktree, its folder and the branch, so a failed apply leaves nothing but the snapshot commit, which holds only the user's own edits.
 
 Without `--json`, prints (the first line only when a snapshot was made):
 

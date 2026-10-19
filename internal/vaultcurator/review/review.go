@@ -40,6 +40,8 @@ type Options struct {
 	// the document's title and its sync command.
 	PlanPath   string
 	ReviewPath string
+	// Ignored is passed to plan.Options.Ignored. Nil skips the check.
+	Ignored func(path string) (bool, error)
 }
 
 // categories lists every category in the order review shows them: the ones
@@ -84,7 +86,7 @@ var headerRE = regexp.MustCompile(`^<!-- vault-curator review plan-sha256=([0-9a
 // plan.Validate with Options.Draft, since review is for plans the agent has
 // already checked.
 func Render(v *vault.Vault, p *plan.Plan, opts Options) ([]byte, error) {
-	r := plan.Validate(v, p, plan.Options{Draft: true})
+	r := plan.Validate(v, p, plan.Options{Draft: true, Ignored: opts.Ignored})
 	if !r.OK() {
 		var b strings.Builder
 		b.WriteString("plan does not pass validate --draft:")

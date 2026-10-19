@@ -7,9 +7,20 @@ import (
 	"io"
 	"strings"
 
+	"github.com/dmnemec/agent-skills/internal/vaultcurator/gitx"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/plan"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/vault"
 )
+
+// gitIgnored returns the git-ignore check for the vault at dir, or nil when
+// dir is not in a git repo (nothing is ignored then).
+func gitIgnored(dir string) func(string) (bool, error) {
+	repo, err := gitx.Open(dir)
+	if err != nil {
+		return nil
+	}
+	return repo.IsIgnored
+}
 
 const validateUsage = `usage: vault-curator validate --vault <path> [--draft] [--json] <plan.json>
 
@@ -58,7 +69,7 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	r := plan.Validate(v, p, plan.Options{Draft: *draft})
+	r := plan.Validate(v, p, plan.Options{Draft: *draft, Ignored: gitIgnored(*vaultDir)})
 
 	if *jsonOut {
 		type change struct {

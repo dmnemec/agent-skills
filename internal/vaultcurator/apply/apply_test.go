@@ -614,3 +614,44 @@ func TestWatermarkWorktreeDeletedByHand(t *testing.T) {
 		t.Error("branch not deleted")
 	}
 }
+
+// ignoredPlan is the example plan with its first split moved into private/,
+// which the vault's committed .gitignore ignores.
+func ignoredPlan(t *testing.T, r *gitx.Repo) *plan.Plan {
+	t.Helper()
+	gittest.WriteFile(t, r, ".gitignore", "private/\n")
+	gittest.Commit(t, r, "ignore private")
+	p := loadPlan(t)
+	p.Op("split-standup").Path = "private/Harbor standup.md"
+	return p
+}
+
+func TestApplyRefusesSplitIntoIgnoredPath(t *testing.T) {
+	r := gittest.Vault(t)
+	p := ignoredPlan(t, r)
+	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
+
+	_, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: root})
+	var inv *InvalidPlanError
+	if !errors.As(err, &inv) {
+		t.Fatalf("err = %v, want InvalidPlanError", err)
+	}
+	if !strings.Contains(inv.Errors[0].Error(), "split-standup") || !strings.Contains(inv.Errors[0].Error(), "private/Harbor standup.md") {
+		t.Errorf("error = %v, want op and path named", inv.Errors[0])
+	}
+	requireNoTrace(t, r, root, before, base)
+}
+
+func TestApplyPostCommitCheckCatchesIgnoredPath(t *testing.T) {
+	r := gittest.Vault(t)
+	p := ignoredPlan(t, r)
+	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
+	ignoreChecker = func(*gitx.Repo) func(string) (bool, error) { return nil }
+	t.Cleanup(func() { ignoreChecker = func(r *gitx.Repo) func(string) (bool, error) { return r.IsIgnored } })
+
+	_, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: root})
+	if err == nil || !strings.Contains(err.Error(), "private/Harbor standup.md") {
+		t.Fatalf("err = %v, want missing-from-commit error naming the path", err)
+	}
+	requireNoTrace(t, r, root, before, base)
+}
