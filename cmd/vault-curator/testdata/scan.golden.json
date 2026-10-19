@@ -1,0 +1,629 @@
+{
+  "watermark": {
+    "tag": "vault-curator/watermark",
+    "exists": true,
+    "commit": "<commit>"
+  },
+  "candidates": [
+    {
+      "path": "daily/2026-09-18.md",
+      "title": "2026-09-18",
+      "tracked": true,
+      "processed_blocks": 1,
+      "new_blocks": [
+        {
+          "start_line": 6,
+          "end_line": 7,
+          "hash": "bbe13e85ccc8bf1e",
+          "text": "- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n",
+          "processed": false
+        }
+      ],
+      "blocks": [
+        {
+          "start_line": 1,
+          "end_line": 4,
+          "hash": "993ba18102dc89cb",
+          "text": "- harbor demo prep w/ Sana\n    - demo flow: ingest -\u003e ledgerline -\u003e ops dashboard\n    - Sana presents, Mira drives\n    - AI Mira: seed demo tenant data\n",
+          "processed": true
+        },
+        {
+          "start_line": 6,
+          "end_line": 7,
+          "hash": "bbe13e85ccc8bf1e",
+          "text": "- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n",
+          "processed": false
+        }
+      ]
+    }
+  ],
+  "remaining": 0,
+  "notes": [
+    {
+      "path": "Coffee machine options.md",
+      "title": "Coffee machine options"
+    },
+    {
+      "path": "Unsorted.md",
+      "title": "Unsorted",
+      "type": "project",
+      "aliases": [
+        "Fallback"
+      ]
+    },
+    {
+      "path": "archive/2025/q4/Ledgerline schema v2 notes.md",
+      "title": "Ledgerline schema v2 notes"
+    },
+    {
+      "path": "components/Beacon.md",
+      "title": "Beacon",
+      "type": "component",
+      "aliases": [
+        "beacon service"
+      ]
+    },
+    {
+      "path": "components/Ledgerline.md",
+      "title": "Ledgerline",
+      "type": "component",
+      "aliases": [
+        "LL",
+        "the ledger"
+      ]
+    },
+    {
+      "path": "components/Tidegate.md",
+      "title": "Tidegate",
+      "type": "component",
+      "aliases": [
+        "TG",
+        "tide gate"
+      ]
+    },
+    {
+      "path": "daily/2026-09-08.md",
+      "title": "2026-09-08",
+      "type": "daily"
+    },
+    {
+      "path": "daily/2026-09-14.md",
+      "title": "2026-09-14"
+    },
+    {
+      "path": "daily/2026-09-15.md",
+      "title": "2026-09-15"
+    },
+    {
+      "path": "daily/2026-09-16.md",
+      "title": "2026-09-16"
+    },
+    {
+      "path": "daily/2026-09-18.md",
+      "title": "2026-09-18"
+    },
+    {
+      "path": "meetings/2026-09-08 Tidegate rate limits.md",
+      "title": "2026-09-08 Tidegate rate limits",
+      "type": "meeting"
+    },
+    {
+      "path": "meetings/2026-09-10 Harbor kickoff.md",
+      "title": "2026-09-10 Harbor kickoff",
+      "type": "meeting"
+    },
+    {
+      "path": "people/Mira Vantongeren.md",
+      "title": "Mira Vantongeren",
+      "type": "person",
+      "aliases": [
+        "Mira"
+      ]
+    },
+    {
+      "path": "projects/Harbor.md",
+      "title": "Harbor",
+      "type": "project",
+      "aliases": [
+        "HBR",
+        "Harbor ingest",
+        "the Harbor project"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "path": "Unsorted.md",
+      "title": "Unsorted",
+      "type": "project",
+      "aliases": [
+        "Fallback"
+      ],
+      "hub": true
+    },
+    {
+      "path": "components/Beacon.md",
+      "title": "Beacon",
+      "type": "component",
+      "aliases": [
+        "beacon service"
+      ],
+      "hub": true
+    },
+    {
+      "path": "components/Ledgerline.md",
+      "title": "Ledgerline",
+      "type": "component",
+      "aliases": [
+        "LL",
+        "the ledger"
+      ],
+      "hub": true
+    },
+    {
+      "path": "components/Tidegate.md",
+      "title": "Tidegate",
+      "type": "component",
+      "aliases": [
+        "TG",
+        "tide gate"
+      ],
+      "hub": true
+    },
+    {
+      "path": "people/Mira Vantongeren.md",
+      "title": "Mira Vantongeren",
+      "type": "person",
+      "aliases": [
+        "Mira"
+      ],
+      "hub": false
+    },
+    {
+      "path": "projects/Harbor.md",
+      "title": "Harbor",
+      "type": "project",
+      "aliases": [
+        "HBR",
+        "Harbor ingest",
+        "the Harbor project"
+      ],
+      "hub": true
+    }
+  ],
+  "links": [
+    {
+      "from": "archive/2025/q4/Ledgerline schema v2 notes.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 3
+    },
+    {
+      "from": "archive/2025/q4/Ledgerline schema v2 notes.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline#Schema]]",
+      "line": 3
+    },
+    {
+      "from": "components/Beacon.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 6,
+      "in_frontmatter": true
+    },
+    {
+      "from": "components/Beacon.md",
+      "to": "components/Tidegate.md",
+      "target": "Tidegate",
+      "raw": "[[Tidegate]]",
+      "line": 8,
+      "in_frontmatter": true
+    },
+    {
+      "from": "components/Beacon.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 12
+    },
+    {
+      "from": "components/Ledgerline.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 7,
+      "in_frontmatter": true
+    },
+    {
+      "from": "components/Ledgerline.md",
+      "to": "people/Mira Vantongeren.md",
+      "target": "Mira Vantongeren",
+      "raw": "[[Mira Vantongeren]]",
+      "line": 9,
+      "in_frontmatter": true
+    },
+    {
+      "from": "components/Ledgerline.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 13
+    },
+    {
+      "from": "components/Ledgerline.md",
+      "to": "components/Tidegate.md",
+      "target": "Tidegate",
+      "raw": "[[Tidegate]]",
+      "line": 13
+    },
+    {
+      "from": "components/Ledgerline.md",
+      "to": "archive/2025/q4/Ledgerline schema v2 notes.md",
+      "target": "Ledgerline schema v2 notes",
+      "raw": "[[Ledgerline schema v2 notes]]",
+      "line": 17
+    },
+    {
+      "from": "components/Tidegate.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 7,
+      "in_frontmatter": true
+    },
+    {
+      "from": "components/Tidegate.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 9,
+      "in_frontmatter": true
+    },
+    {
+      "from": "components/Tidegate.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon]]",
+      "line": 10,
+      "in_frontmatter": true
+    },
+    {
+      "from": "components/Tidegate.md",
+      "to": "people/Mira Vantongeren.md",
+      "target": "Mira Vantongeren",
+      "raw": "[[Mira Vantongeren]]",
+      "line": 12,
+      "in_frontmatter": true
+    },
+    {
+      "from": "components/Tidegate.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 16
+    },
+    {
+      "from": "components/Tidegate.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 16
+    },
+    {
+      "from": "components/Tidegate.md",
+      "to": "meetings/2026-09-08 Tidegate rate limits.md",
+      "target": "2026-09-08 Tidegate rate limits",
+      "raw": "[[2026-09-08 Tidegate rate limits#Decisions]]",
+      "line": 20
+    },
+    {
+      "from": "daily/2026-09-08.md",
+      "to": "meetings/2026-09-08 Tidegate rate limits.md",
+      "target": "2026-09-08 Tidegate rate limits",
+      "raw": "[[2026-09-08 Tidegate rate limits]]",
+      "line": 7
+    },
+    {
+      "from": "daily/2026-09-15.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline#Schema]]",
+      "line": 15
+    },
+    {
+      "from": "daily/2026-09-16.md",
+      "to": "meetings/2026-09-08 Tidegate rate limits.md",
+      "target": "2026-09-08 Tidegate rate limits",
+      "raw": "[[2026-09-08 Tidegate rate limits]]",
+      "line": 2
+    },
+    {
+      "from": "daily/2026-09-16.md",
+      "to": "people/Mira Vantongeren.md",
+      "target": "Mira Vantongeren",
+      "raw": "[[Mira Vantongeren|mira]]",
+      "line": 4
+    },
+    {
+      "from": "daily/2026-09-16.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon#Interfaces|beacon hub]]",
+      "line": 9
+    },
+    {
+      "from": "daily/2026-09-18.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon]]",
+      "line": 7
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 4,
+      "in_frontmatter": true
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "components/Tidegate.md",
+      "target": "Tidegate",
+      "raw": "[[Tidegate]]",
+      "line": 6,
+      "in_frontmatter": true
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "people/Mira Vantongeren.md",
+      "target": "Mira Vantongeren",
+      "raw": "[[Mira Vantongeren]]",
+      "line": 8,
+      "in_frontmatter": true
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "components/Tidegate.md",
+      "target": "Tidegate",
+      "raw": "[[Tidegate]]",
+      "line": 18
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline|the ledger]]",
+      "line": 19
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon]]",
+      "line": 25
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon]]",
+      "line": 30
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon]]",
+      "line": 35
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "people/Mira Vantongeren.md",
+      "target": "Mira Vantongeren",
+      "raw": "[[Mira Vantongeren]]",
+      "line": 43
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "meetings/2026-09-08 Tidegate rate limits.md",
+      "target": "2026-09-08 Tidegate rate limits",
+      "raw": "[[2026-09-08 Tidegate rate limits]]",
+      "line": 43
+    },
+    {
+      "from": "meetings/2026-09-08 Tidegate rate limits.md",
+      "to": "meetings/2026-09-08 Tidegate rate limits.md",
+      "target": "2026-09-08 Tidegate rate limits",
+      "raw": "[[2026-09-08 Tidegate rate limits]]",
+      "line": 44
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 4,
+      "in_frontmatter": true
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 6,
+      "in_frontmatter": true
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 7,
+      "in_frontmatter": true
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "people/Mira Vantongeren.md",
+      "target": "Mira Vantongeren",
+      "raw": "[[Mira Vantongeren]]",
+      "line": 9,
+      "in_frontmatter": true
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "components/Tidegate.md",
+      "target": "Tidegate",
+      "raw": "[[Tidegate]]",
+      "line": 19
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 19
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon]]",
+      "line": 20
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 20
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 38
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 47
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "meetings/2026-09-10 Harbor kickoff.md",
+      "target": "2026-09-10 Harbor kickoff",
+      "raw": "[[2026-09-10 Harbor kickoff]]",
+      "line": 51
+    },
+    {
+      "from": "meetings/2026-09-10 Harbor kickoff.md",
+      "to": "meetings/2026-09-10 Harbor kickoff.md",
+      "target": "2026-09-10 Harbor kickoff",
+      "raw": "[[2026-09-10 Harbor kickoff]]",
+      "line": 52
+    },
+    {
+      "from": "people/Mira Vantongeren.md",
+      "to": "projects/Harbor.md",
+      "target": "Harbor",
+      "raw": "[[Harbor]]",
+      "line": 8
+    },
+    {
+      "from": "people/Mira Vantongeren.md",
+      "to": "components/Tidegate.md",
+      "target": "Tidegate",
+      "raw": "[[Tidegate]]",
+      "line": 8
+    },
+    {
+      "from": "people/Mira Vantongeren.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 8
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "components/Tidegate.md",
+      "target": "Tidegate",
+      "raw": "[[Tidegate]]",
+      "line": 15
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 15
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon]]",
+      "line": 15
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "people/Mira Vantongeren.md",
+      "target": "Mira Vantongeren",
+      "raw": "[[Mira Vantongeren]]",
+      "line": 17
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "components/Tidegate.md",
+      "target": "Tidegate",
+      "raw": "[[Tidegate]]",
+      "line": 21
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "components/Ledgerline.md",
+      "target": "Ledgerline",
+      "raw": "[[Ledgerline]]",
+      "line": 22
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "components/Beacon.md",
+      "target": "Beacon",
+      "raw": "[[Beacon]]",
+      "line": 23
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "meetings/2026-09-08 Tidegate rate limits.md",
+      "target": "2026-09-08 Tidegate rate limits",
+      "raw": "[[2026-09-08 Tidegate rate limits]]",
+      "line": 27
+    },
+    {
+      "from": "projects/Harbor.md",
+      "to": "meetings/2026-09-10 Harbor kickoff.md",
+      "target": "2026-09-10 Harbor kickoff",
+      "raw": "[[2026-09-10 Harbor kickoff]]",
+      "line": 28
+    }
+  ],
+  "broken_links": [
+    {
+      "from": "daily/2026-09-15.md",
+      "target": "Tidegate v2 RFC",
+      "raw": "[[Tidegate v2 RFC]]",
+      "line": 6
+    }
+  ],
+  "orphans": [
+    "Coffee machine options.md",
+    "daily/2026-09-14.md"
+  ]
+}

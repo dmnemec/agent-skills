@@ -6,7 +6,7 @@ Portable agent skills, plus the small CLIs that back them. The skills are built 
 
 ### vault-curator
 
-> **Status:** design. Nothing is implemented yet.
+> **Status:** v1 in progress. Implemented: `scan`, `entities`, `validate`, `review`, `apply`, `watermark`, and the `setup`, `curate`, `entities` and `backfill` skills. Not yet: hubs, retrieval.
 
 A set of skills plus a Go CLI that turns a flat, unlinked markdown vault (such as an Obsidian vault) into a linked, typed knowledge base. Every change is reviewed before it is committed.
 
@@ -17,6 +17,16 @@ A set of skills plus a Go CLI that turns a flat, unlinked markdown vault (such a
 
 The agent proposes a plan, you approve it, and the CLI applies it on a separate git branch. The agent never edits your vault directly.
 
+### Using vault-curator
+
+Paste this into your agent:
+
+```text
+Install vault-curator from https://github.com/dmnemec/agent-skills
+```
+
+The agent follows [INSTALL.md](INSTALL.md): it installs the binary and the skills, finds your vault and records it in your home-directory `AGENTS.md`, and runs a first scan. Then ask it to curate your vault. The commands are documented in [docs/cli.md](docs/cli.md).
+
 The full design is in [docs/design.md](docs/design.md).
 
 ## Planned layout
@@ -24,7 +34,7 @@ The full design is in [docs/design.md](docs/design.md).
 ```text
 skills/     SKILL.md folders (curate, backfill, entities, context, ask)
 cmd/        Go source for the CLI
-adapters/   thin per-agent notes for Claude, Code Puppy and Codex
+adapters/   per-product install notes for Claude Code, Codex, Copilot and Code Puppy
 testdata/   a synthetic vault for tests and demos
 docs/       design documents
 ```

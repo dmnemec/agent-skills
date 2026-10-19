@@ -1,0 +1,4 @@
+- team wants a new coffee machine for the 3rd floor
+- options: drip, pod, the big espresso one
+- budget ~400
+- ask facilities who signs off

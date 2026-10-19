@@ -127,7 +127,7 @@ Structure comes from note types, frontmatter and links, never from folders. Fron
 | Tier | Changes | Behavior |
 | --- | --- | --- |
 | Auto | Formatting, indentation, frontmatter, appended link suggestions, generated hub blocks | Applied once the plan is approved by category |
-| Approve each | Splits, renames, moves, merges, new entities, typed edges, supersedes links, ADR drafts | Listed individually in review |
+| Approve each | Splits, renames, moves, merges, new entities, typed edges, supersedes links, aliases, retargeted links, ADR drafts | Listed individually in review |
 | Never | Inventing content, silently dropping lines, closing action items | Not permitted |
 
 **Backfill.** On install, the backfill skill curates the existing vault (a few dozen notes today) in small reviewable batches. The first batch seeds entities (people, projects, components), because everything else links to them.
@@ -209,6 +209,354 @@ Retrieval in v1 is structure, not search infrastructure. Graph queries run on de
 **Testing.** A synthetic vault is the test fixture and the demo: fake meetings, fake components and deliberately messy daily notes, with mixed indentation, blank-line separators and several meetings in one file. Tests cover scan, plan validation (including the lossless check), apply on a worktree, hub regeneration, and graph queries, all without touching real notes.
 
 **Portability.** One skill repo, loaded into Claude first. Code Puppy and Codex versions are adapted from the published repo, using Code Puppy itself for the conversion.
+
+## Agent flow
+
+Every path an agent can take through the setup, curate, entities and backfill skills is one deterministic finite automaton, defined as data in `internal/vaultcurator/flow` and checked by its tests in CI. The model exists so the flow has no dead ends, no traps and no unbounded loops, and so each skill step says exactly where to go on each outcome.
+
+**States.** One state per skill step, plus the recovery states the review required (a declined merge, a dirty tree before merge, a merge conflict, validation failing after the decisions, an earlier run's leftover branch), the `start` state, and four terminals: `done`, `stopped_clean`, `parked` and `stopped_merged`. Each state has a one-line invariant, and the part the properties reason about (does a curation branch exist, is it merged, is a merge in progress) is recorded as data.
+
+**Inputs.** An input is an outcome the agent can observe without judgement: a CLI exit code with the documented error kind (`invalid_plan`, `sync_refused`, `merge_conflict`, …), a git command's result, or a user answer (`yes`, `no`, `decisions_given`, the skill the user asks for). A step that retries its own command internally does so a bounded number of times its text states, and only the last outcome is the input (a draft that still fails validation after 3 fix rounds is `invalid_plan`).
+
+**Hand-offs.** Skills hand off to each other through ordinary transitions: curate, entities and backfill hand off to setup when the CLI or the vault path is missing; setup hands off to curate or backfill when the user picks one; backfill hands off to entities to seed. The review-to-merge tail is written once, as curate steps 5 to 9, and curate, entities and backfill all hand off to it. It ends at a named exit (`merged`, `nothing`, `replan`), and the agent continues where the skill that started the run says (table under Exits). The DFA the properties check is the model expanded over that calling skill: its states are (state, caller) pairs, the caller set by entering a skill's first step. Calls are one level deep, so the expansion is finite and a plain DFA.
+
+**Skill tags.** Every `##` step heading in a `skills/vault-curator/*/SKILL.md` ends with its state, as in `## 8. Apply (state: curate.apply)`. A `###` heading with a tag is a sub-step for a recovery state. A test fails when a step names no state, an unknown state or another skill's state, when a state has two steps, or when a step state has none. The start and terminal states have no step: a skill's `description` triggers it, and terminals do nothing.
+
+**Properties.** Each has a test, and each test has a negative twin that breaks the model and expects the property to fail.
+
+| Property | Guarantees | How it is checked |
+| --- | --- | --- |
+| Deterministic | The agent never chooses between two moves. | At most one transition per (state, input). |
+| Complete | Every outcome the agent can observe has a move (finding 6: a failed merge, finding 7: validation failing after the decisions). | Every input a state lists has a transition, transitions use only listed inputs, and every exit reached in the expansion has a return for its caller. |
+| Reachable | No step is dead text. | Breadth-first search of the expansion from `start` visits every state. |
+| Co-reachable | No dead ends or traps: from anywhere, the run can end. | Terminals have no transitions; reverse search from the terminal nodes visits every reachable node. |
+| Clean terminals | A run never ends half-applied. | Each transition carries its effect on the vault condition (branch created, merged, merge conflicted, merge aborted, watermarked), and every edge must turn the source's condition into the target's. No terminal has a merge in progress, and a terminal that leaves a curation branch (`parked`, `stopped_merged`) is allowed only because `curate.leftover` on `yes` takes it over in a later run. |
+| Bounded loops | The agent never loops on its own: every repetition is the user's choice or makes measurable progress. | Delete every edge labelled with a user answer and every edge into a progress state (one that names a measure that strictly decreases on each visit); depth-first search must find no cycle in what remains. No state is a progress state today: every cycle passes through a user answer. |
+
+"Bounded loops" lets a loop through the user's review answers repeat, because the user can stop it. Finding 8's loop, backfill seeding entities again whenever batch 1 merged nothing, passed through those answers, so a model-specific test also pins that `backfill.seed` lies on no cycle: seeding runs at most once per backfill.
+
+The rest of this section is generated from the model; a test fails when it is stale.
+
+<!-- vault-curator:begin agent-flow -->
+<!-- Generated from internal/vaultcurator/flow. After changing the model, run: go test ./internal/vaultcurator/flow -run TestDesignDoc -update -->
+
+### States
+
+35 states: the start, 30 steps and 4 terminals. **Vault** is the machine-checked part of the invariant.
+
+| State | Vault | Invariant |
+| --- | --- | --- |
+| `start` | no branch | Nothing has run; the vault is as the user left it. |
+| `setup.binary` | no branch | No vault file has changed; the CLI may be missing or old. |
+| `setup.vault` | no branch | The CLI is current; no vault file has changed. |
+| `setup.record` | no branch | The vault folder is in a git work tree; no vault file has changed. |
+| `setup.skills` | no branch | The vault path is recorded in ~/AGENTS.md and the product's global file. |
+| `setup.scan` | no branch | The skills are installed; the vault is unchanged. |
+| `curate.locate` | no branch | Nothing has run; the vault is as the user left it. |
+| `curate.binary` | no branch | The vault folder is known and in a git work tree; nothing changed. |
+| `curate.leftover` | no branch | The CLI runs; this run has no curation branch (earlier runs' curate/* branches may exist). |
+| `curate.scan` | no branch | This run has no curation branch; the vault is unchanged. |
+| `curate.plan` | no branch | The scan output is in hand; the vault is unchanged. |
+| `curate.validate_draft` | no branch | A plan file exists with every status pending; no note has changed. |
+| `curate.review` | no branch | The plan passes validate --draft and its review file is rendered; no note has changed. |
+| `curate.record` | no branch | The user has decided every category and approve-each operation; the plan is not yet synced. |
+| `curate.apply` | no branch | The plan holds the user's synced statuses, at least one approved; no note has changed. |
+| `curate.revise` | no branch | The synced plan fails validation; nothing is applied. |
+| `curate.confirm` | branch unmerged | A curate/* branch and its worktree hold the approved operations, unmerged; the user's branch has at most a snapshot of their own edits. |
+| `curate.merge` | branch unmerged | The user confirmed this merge; the branch is unmerged. |
+| `curate.abort_merge` | branch unmerged, merge in progress | A merge of the branch stopped on conflicts and is in progress on the user's branch. |
+| `curate.watermark` | branch merged | The branch is merged into the user's branch; the watermark has not moved. |
+| `entities.prepare` | no branch | Nothing has run; the vault is as the user left it. |
+| `entities.list` | no branch | The vault is located and the CLI runs; this pass has no curation branch. |
+| `entities.decide` | no branch | The entity and candidate lists are in hand; the vault is unchanged. |
+| `entities.plan` | no branch | Every candidate has a verdict; the vault is unchanged. |
+| `entities.merge` | no branch | The plan holds every seed and alias; merges are still to write. |
+| `entities.report` | no branch | The entity plan is merged and watermarked; no curation branch is left. |
+| `backfill.prepare` | no branch | Nothing has run; the vault is as the user left it. |
+| `backfill.start` | no branch | The vault is located and the CLI runs; no batch has run in this backfill. |
+| `backfill.seed` | no branch | No watermark exists and unprocessed notes remain; seeding has not run in this backfill. |
+| `backfill.plan` | no branch | A batch from scan --all --limit is in hand; it has no curation branch. |
+| `backfill.next` | no branch | The previous batch ended (merged and watermarked, applied nothing, or discarded); no curation branch is left. |
+| **`done`** (terminal) | no branch | Finished: everything approved is merged and watermarked; no branch, worktree or merge in progress is left. |
+| **`stopped_clean`** (terminal) | no branch | Stopped before the current pass applied anything; no branch, worktree or merge in progress is left. |
+| **`parked`** (terminal) | branch unmerged | The user declined the merge: the branch and its worktree stay unmerged, the user's branch is untouched; curate.leftover finds it. |
+| **`stopped_merged`** (terminal) | branch merged | The branch is merged but watermark refused; curate.leftover finds the branch, and finishing it runs watermark again. |
+
+### Inputs
+
+21 inputs.
+
+| Input | Kind | Observed as |
+| --- | --- | --- |
+| `ok` | outcome | The step's commands exited 0 and its Done-when criterion holds. |
+| `setup` | user answer | The user asks to install or set up vault-curator. |
+| `curate` | user answer | The user asks to curate (or picks curate when setup offers it). |
+| `entities` | user answer | The user asks to seed, add, alias or merge entities. |
+| `backfill` | user answer | The user asks to backfill (or picks backfill when setup offers it). |
+| `yes` | user answer | The user answers yes to the step's question. |
+| `no` | user answer | The user answers no, declines, or asks to stop. |
+| `decisions_given` | user answer | The user has answered every category and every approve-each operation. |
+| `go_missing` | outcome | `go version` fails, so the CLI cannot be installed. |
+| `no_vault` | outcome | The home-directory AGENTS.md names no existing vault folder in a git work tree. |
+| `binary_missing` | outcome | `vault-curator version` is not found or exits non-zero. |
+| `no_candidates` | outcome | The `scan` or `entities` JSON has an empty `candidates` list (entities: and the user asked for nothing specific). |
+| `no_watermark` | outcome | The `scan --json` output has candidates and `watermark.exists` false. |
+| `all_skipped` | outcome | Every entity candidate got the verdict skip. |
+| `invalid_plan` | outcome | `validate` or `apply` exits 1 listing plan errors; in a fix step, still after its 3 fix rounds. |
+| `sync_refused` | outcome | `review --sync` exits 1: an approve-each operation is still pending, or the plan changed since rendering. |
+| `none_approved` | outcome | `review --sync` exits 0 and the plan has no approved operation. |
+| `apply_refused` | outcome | `apply` exits 1 without plan errors (changes staged outside the vault, a failing hook, a git error); apply rolled back. |
+| `merge_dirty_tree` | outcome | Committing the vault's uncommitted changes fails, or `git merge` exits 1 because local changes would be overwritten; no merge started. |
+| `merge_conflict` | outcome | `git merge` exits 1 with CONFLICT; the merge is in progress. |
+| `watermark_refused` | outcome | `vault-curator watermark` exits 1. |
+
+### Exits
+
+The review-to-merge tail (`curate.validate_draft` to `curate.watermark`) is shared. It ends at an exit, and the agent continues where the skill that handed off to it says.
+
+| Exit | from curate | from entities | from backfill |
+| --- | --- | --- | --- |
+| `nothing` | `done` | `done` | `backfill.next` |
+| `replan` | `curate.scan` | `entities.list` | `backfill.next` |
+| `merged` | `done` | `entities.report` | `backfill.next` |
+
+### Diagrams
+
+One diagram per skill, with the transitions into it from other skills.
+
+#### setup
+
+```mermaid
+stateDiagram-v2
+    state "setup.binary" as setup_binary
+    state "setup.vault" as setup_vault
+    state "stopped_clean" as stopped_clean
+    state "setup.record" as setup_record
+    state "setup.skills" as setup_skills
+    state "setup.scan" as setup_scan
+    state "curate.locate" as curate_locate
+    state "backfill.prepare" as backfill_prepare
+    state "done" as done
+    state "curate.binary" as curate_binary
+    state "entities.prepare" as entities_prepare
+    [*] --> setup_binary : setup
+    setup_binary --> setup_vault : ok
+    setup_binary --> stopped_clean : go_missing
+    setup_vault --> setup_record : ok
+    setup_vault --> stopped_clean : no
+    setup_record --> setup_skills : ok
+    setup_record --> stopped_clean : no
+    setup_skills --> setup_scan : ok
+    setup_scan --> curate_locate : curate
+    setup_scan --> backfill_prepare : backfill
+    setup_scan --> done : no
+    curate_locate --> setup_binary : no_vault
+    curate_binary --> setup_binary : binary_missing
+    entities_prepare --> setup_binary : no_vault, binary_missing
+    backfill_prepare --> setup_binary : no_vault, binary_missing
+    stopped_clean --> [*]
+    done --> [*]
+```
+
+#### curate
+
+```mermaid
+stateDiagram-v2
+    state "curate.locate" as curate_locate
+    state "setup.scan" as setup_scan
+    state "curate.binary" as curate_binary
+    state "setup.binary" as setup_binary
+    state "curate.leftover" as curate_leftover
+    state "curate.scan" as curate_scan
+    state "curate.confirm" as curate_confirm
+    state "curate.plan" as curate_plan
+    state "done" as done
+    state "curate.validate_draft" as curate_validate_draft
+    state "curate.review" as curate_review
+    state "stopped_clean" as stopped_clean
+    state "curate.record" as curate_record
+    state "curate.apply" as curate_apply
+    state "curate.revise" as curate_revise
+    state "curate.merge" as curate_merge
+    state "parked" as parked
+    state "curate.watermark" as curate_watermark
+    state "curate.abort_merge" as curate_abort_merge
+    state "stopped_merged" as stopped_merged
+    state "entities.merge" as entities_merge
+    state "backfill.plan" as backfill_plan
+    state "return to caller (nothing)" as exit_nothing
+    state "return to caller (replan)" as exit_replan
+    state "return to caller (merged)" as exit_merged
+    [*] --> curate_locate : curate
+    setup_scan --> curate_locate : curate
+    curate_locate --> curate_binary : ok
+    curate_locate --> setup_binary : no_vault
+    curate_binary --> curate_leftover : ok
+    curate_binary --> setup_binary : binary_missing
+    curate_leftover --> curate_scan : ok, no
+    curate_leftover --> curate_confirm : yes
+    curate_scan --> curate_plan : ok
+    curate_scan --> done : no_candidates
+    curate_plan --> curate_validate_draft : ok
+    curate_validate_draft --> curate_review : ok
+    curate_validate_draft --> stopped_clean : invalid_plan
+    curate_review --> curate_record : decisions_given
+    curate_review --> stopped_clean : no
+    curate_record --> curate_apply : ok
+    curate_record --> curate_review : sync_refused
+    curate_record --> exit_nothing : none_approved
+    curate_apply --> curate_confirm : ok
+    curate_apply --> curate_revise : invalid_plan
+    curate_apply --> stopped_clean : apply_refused
+    curate_revise --> curate_review : ok
+    curate_revise --> stopped_clean : invalid_plan
+    curate_confirm --> curate_merge : yes
+    curate_confirm --> parked : no
+    curate_merge --> curate_watermark : ok
+    curate_merge --> curate_confirm : merge_dirty_tree
+    curate_merge --> curate_abort_merge : merge_conflict
+    curate_abort_merge --> exit_replan : ok
+    curate_watermark --> exit_merged : ok
+    curate_watermark --> stopped_merged : watermark_refused
+    entities_merge --> curate_validate_draft : ok
+    backfill_plan --> curate_validate_draft : ok
+    done --> [*]
+    stopped_clean --> [*]
+    parked --> [*]
+    stopped_merged --> [*]
+```
+
+#### entities
+
+```mermaid
+stateDiagram-v2
+    state "entities.prepare" as entities_prepare
+    state "entities.list" as entities_list
+    state "setup.binary" as setup_binary
+    state "entities.decide" as entities_decide
+    state "entities.plan" as entities_plan
+    state "entities.merge" as entities_merge
+    state "curate.validate_draft" as curate_validate_draft
+    state "entities.report" as entities_report
+    state "done" as done
+    state "backfill.seed" as backfill_seed
+    state "return to caller (nothing)" as exit_nothing
+    [*] --> entities_prepare : entities
+    entities_prepare --> entities_list : ok
+    entities_prepare --> setup_binary : no_vault, binary_missing
+    entities_list --> entities_decide : ok
+    entities_list --> exit_nothing : no_candidates
+    entities_decide --> entities_plan : ok
+    entities_decide --> exit_nothing : all_skipped
+    entities_plan --> entities_merge : ok
+    entities_merge --> curate_validate_draft : ok
+    entities_report --> done : ok
+    backfill_seed --> entities_list : ok
+    done --> [*]
+```
+
+#### backfill
+
+```mermaid
+stateDiagram-v2
+    state "backfill.prepare" as backfill_prepare
+    state "setup.scan" as setup_scan
+    state "backfill.start" as backfill_start
+    state "setup.binary" as setup_binary
+    state "backfill.plan" as backfill_plan
+    state "done" as done
+    state "backfill.seed" as backfill_seed
+    state "entities.list" as entities_list
+    state "curate.validate_draft" as curate_validate_draft
+    state "backfill.next" as backfill_next
+    [*] --> backfill_prepare : backfill
+    setup_scan --> backfill_prepare : backfill
+    backfill_prepare --> backfill_start : ok
+    backfill_prepare --> setup_binary : no_vault, binary_missing
+    backfill_start --> backfill_plan : ok
+    backfill_start --> done : no_candidates
+    backfill_start --> backfill_seed : no_watermark
+    backfill_seed --> entities_list : ok
+    backfill_plan --> curate_validate_draft : ok
+    backfill_next --> backfill_plan : ok
+    backfill_next --> done : no_candidates
+    done --> [*]
+```
+
+### Transitions
+
+<details>
+<summary>All 64 transitions</summary>
+
+| State | On | Next | Effect |
+| --- | --- | --- | --- |
+| `start` | `setup` | `setup.binary` |  |
+| `start` | `curate` | `curate.locate` |  |
+| `start` | `entities` | `entities.prepare` |  |
+| `start` | `backfill` | `backfill.prepare` |  |
+| `setup.binary` | `ok` | `setup.vault` |  |
+| `setup.binary` | `go_missing` | `stopped_clean` |  |
+| `setup.vault` | `ok` | `setup.record` |  |
+| `setup.vault` | `no` | `stopped_clean` |  |
+| `setup.record` | `ok` | `setup.skills` |  |
+| `setup.record` | `no` | `stopped_clean` |  |
+| `setup.skills` | `ok` | `setup.scan` |  |
+| `setup.scan` | `curate` | `curate.locate` |  |
+| `setup.scan` | `backfill` | `backfill.prepare` |  |
+| `setup.scan` | `no` | `done` |  |
+| `curate.locate` | `ok` | `curate.binary` |  |
+| `curate.locate` | `no_vault` | `setup.binary` |  |
+| `curate.binary` | `ok` | `curate.leftover` |  |
+| `curate.binary` | `binary_missing` | `setup.binary` |  |
+| `curate.leftover` | `ok` | `curate.scan` |  |
+| `curate.leftover` | `yes` | `curate.confirm` | branch created |
+| `curate.leftover` | `no` | `curate.scan` |  |
+| `curate.scan` | `ok` | `curate.plan` |  |
+| `curate.scan` | `no_candidates` | `done` |  |
+| `curate.plan` | `ok` | `curate.validate_draft` |  |
+| `curate.validate_draft` | `ok` | `curate.review` |  |
+| `curate.validate_draft` | `invalid_plan` | `stopped_clean` |  |
+| `curate.review` | `decisions_given` | `curate.record` |  |
+| `curate.review` | `no` | `stopped_clean` |  |
+| `curate.record` | `ok` | `curate.apply` |  |
+| `curate.record` | `sync_refused` | `curate.review` |  |
+| `curate.record` | `none_approved` | exit `nothing` |  |
+| `curate.apply` | `ok` | `curate.confirm` | branch created |
+| `curate.apply` | `invalid_plan` | `curate.revise` |  |
+| `curate.apply` | `apply_refused` | `stopped_clean` |  |
+| `curate.revise` | `ok` | `curate.review` |  |
+| `curate.revise` | `invalid_plan` | `stopped_clean` |  |
+| `curate.confirm` | `yes` | `curate.merge` |  |
+| `curate.confirm` | `no` | `parked` |  |
+| `curate.merge` | `ok` | `curate.watermark` | merged |
+| `curate.merge` | `merge_dirty_tree` | `curate.confirm` |  |
+| `curate.merge` | `merge_conflict` | `curate.abort_merge` | merge conflicted |
+| `curate.abort_merge` | `ok` | exit `replan` | merge aborted, branch removed |
+| `curate.watermark` | `ok` | exit `merged` | watermarked, branch removed |
+| `curate.watermark` | `watermark_refused` | `stopped_merged` |  |
+| `entities.prepare` | `ok` | `entities.list` |  |
+| `entities.prepare` | `no_vault` | `setup.binary` |  |
+| `entities.prepare` | `binary_missing` | `setup.binary` |  |
+| `entities.list` | `ok` | `entities.decide` |  |
+| `entities.list` | `no_candidates` | exit `nothing` |  |
+| `entities.decide` | `ok` | `entities.plan` |  |
+| `entities.decide` | `all_skipped` | exit `nothing` |  |
+| `entities.plan` | `ok` | `entities.merge` |  |
+| `entities.merge` | `ok` | `curate.validate_draft` |  |
+| `entities.report` | `ok` | `done` |  |
+| `backfill.prepare` | `ok` | `backfill.start` |  |
+| `backfill.prepare` | `no_vault` | `setup.binary` |  |
+| `backfill.prepare` | `binary_missing` | `setup.binary` |  |
+| `backfill.start` | `ok` | `backfill.plan` |  |
+| `backfill.start` | `no_candidates` | `done` |  |
+| `backfill.start` | `no_watermark` | `backfill.seed` |  |
+| `backfill.seed` | `ok` | `entities.list` |  |
+| `backfill.plan` | `ok` | `curate.validate_draft` |  |
+| `backfill.next` | `ok` | `backfill.plan` |  |
+| `backfill.next` | `no_candidates` | `done` |  |
+
+</details>
+<!-- vault-curator:end agent-flow -->
 
 ## Deferred and non-goals
 

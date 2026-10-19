@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "operations": [
+    {
+      "id": "split-standup",
+      "op": "split",
+      "category": "split",
+      "tier": "approve-each",
+      "status": "pending",
+      "summary": "Split the Harbor standup out of the 2026-09-14 daily note",
+      "note": "daily/2026-09-14.md",
+      "path": "meetings/2026-09-14 Harbor standup.md",
+      "sources": [
+        {"note": "daily/2026-09-14.md", "block": "59f9f532108a37a1", "lines": [1, 4]}
+      ],
+      "content": "---\ntype: meeting\ndate: 2026-09-14\nproject: \"[[Harbor]]\"\n---\n# 2026-09-14 Harbor standup\n\n- standup\n  - [[Teodor Quill|Teodor]]: [[Ledgerline|ledgerline]] compaction job still flaky, reran it twice over the weekend\n  - Sana wants the [[Harbor|harbor]] beta date firmed up by fri\n  - Oskar on call, paged 3x for [[Tidegate|tidegate]] 502s\n"
+    },
+    {
+      "id": "split-retry",
+      "op": "split",
+      "category": "split",
+      "tier": "approve-each",
+      "status": "pending",
+      "summary": "Split the Tidegate retry design meeting out of the daily note",
+      "note": "daily/2026-09-14.md",
+      "path": "meetings/2026-09-14 Tidegate retry design.md",
+      "sources": [
+        {"note": "daily/2026-09-14.md", "block": "94300d2390c6855f", "lines": [5, 11]}
+      ],
+      "content": "---\ntype: meeting\ndate: 2026-09-14\ntopics:\n  - \"[[Tidegate]]\"\n---\n# 2026-09-14 Tidegate retry design\n\n## Notes\n\n- [[Tidegate|tidegate]] retry design w/ [[Mira]], Oskar\n- current retries are unbounded, that's what hammered [[Ledgerline|ledgerline]] sat night\n- proposal: exp backoff, cap at 5, jitter\n  - Mira: cap should be configurable per tenant\n\n## Decisions\n\n- decided: cap 5 by default, per-tenant override later\n\n## Open questions\n\n- open q: dead-letter after the cap or just drop?\n\n## Action items\n\n- AI Oskar: add retry metrics to the dashboard\n"
+    },
+    {
+      "id": "split-beacon",
+      "op": "split",
+      "category": "split",
+      "tier": "approve-each",
+      "status": "pending",
+      "summary": "Split the Beacon sync, nested under the retry meeting, into its own note",
+      "note": "daily/2026-09-14.md",
+      "path": "meetings/2026-09-14 Beacon sync.md",
+      "sources": [
+        {"note": "daily/2026-09-14.md", "block": "94300d2390c6855f", "lines": [12, 16]}
+      ],
+      "content": "---\ntype: meeting\ndate: 2026-09-14\ntopics:\n  - \"[[Beacon]]\"\n  - \"[[Tidegate]]\"\n---\n# 2026-09-14 Beacon sync\n\n## Notes\n\n- [[Beacon|beacon]] sync (Lio joined late, turned into its own thing)\n- beacon needs a webhook when [[Tidegate|tidegate]] dead-letters\n- Lio: beacon rate limit is 50/s, tidegate bursts way past that\n\n## Decisions\n\n- agreed tidegate batches notifications before calling beacon\n\n## Action items\n\n- AI Lio: write up the beacon webhook contract\n"
+    },
+    {
+      "id": "split-teodor",
+      "op": "split",
+      "category": "split",
+      "tier": "approve-each",
+      "status": "pending",
+      "summary": "Split the 1:1 with Teodor out of the daily note",
+      "note": "daily/2026-09-14.md",
+      "path": "meetings/2026-09-14 1-1 Teodor.md",
+      "link": "- [[2026-09-14 1-1 Teodor|1:1 Teodor]]",
+      "sources": [
+        {"note": "daily/2026-09-14.md", "block": "bfd33e0247b934ee", "lines": [18, 21]}
+      ],
+      "content": "---\ntype: meeting\ndate: 2026-09-14\ntopics:\n  - \"[[Ledgerline]]\"\nattendees:\n  - \"[[Teodor Quill]]\"\n---\n# 2026-09-14 1:1 Teodor\n\n- 1:1 [[Teodor Quill|teodor]]\n  - wants to own the [[Ledgerline|ledgerline]] on-call rotation\n  - compaction: suspects the index rebuild, not storage\n  - AI me: ask Sana about headcount for ledgerline\n"
+    },
+    {
+      "id": "entity-teodor",
+      "op": "create",
+      "category": "entity",
+      "tier": "approve-each",
+      "status": "pending",
+      "summary": "New person: Teodor Quill (in the standup and a 1:1)",
+      "path": "people/Teodor Quill.md",
+      "content": "---\ntype: person\n---\n# Teodor Quill\n"
+    },
+    {
+      "id": "fm-daily",
+      "op": "set_frontmatter",
+      "category": "frontmatter",
+      "tier": "auto",
+      "status": "pending",
+      "summary": "Mark the 2026-09-14 daily note as curated",
+      "note": "daily/2026-09-14.md",
+      "frontmatter": {"type": "daily", "date": "2026-09-14"}
+    },
+    {
+      "id": "links-coffee",
+      "op": "add_links",
+      "category": "links",
+      "tier": "auto",
+      "status": "pending",
+      "summary": "File the orphan coffee machine note under the fallback hub",
+      "note": "Coffee machine options.md",
+      "links": ["Unsorted"]
+    }
+  ]
+}
