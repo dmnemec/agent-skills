@@ -207,6 +207,61 @@ func (r *Repo) CommitAll(msg string) (string, error) {
 	return r.Head()
 }
 
+// ErrStagedOutside is returned by CommitDir when the index already holds
+// staged changes outside r.Dir, which the commit would sweep in.
+var ErrStagedOutside = errors.New("changes are staged outside the vault folder")
+
+// CommitDir stages every change under r.Dir only (git add --all -- .) and
+// commits it with msg, returning the new commit. Files outside r.Dir are
+// neither staged nor committed; if some are already staged it refuses with
+// ErrStagedOutside before staging anything. Hooks run as in CommitAll; if
+// the commit fails, the index is put back as it was. It
+// returns ErrNothingToCommit when r.Dir has no changes.
+func (r *Repo) CommitDir(msg string) (string, error) {
+	prefix, err := r.Run("rev-parse", "--show-prefix")
+	if err != nil {
+		return "", err
+	}
+	if prefix != "" {
+		top, err := r.TopLevel()
+		if err != nil {
+			return "", err
+		}
+		staged, err := r.run("-C", top, "diff", "--cached", "--name-only", "--no-renames", "-z")
+		if err != nil {
+			return "", err
+		}
+		var outside []string
+		for _, p := range strings.Split(staged, "\x00") {
+			if p != "" && !strings.HasPrefix(p, prefix) {
+				outside = append(outside, p)
+			}
+		}
+		if len(outside) > 0 {
+			return "", fmt.Errorf("%w: %s", ErrStagedOutside, strings.Join(outside, ", "))
+		}
+	}
+	// Remember the index so a failed commit can put it back as it was.
+	index, ierr := r.Run("write-tree")
+	restore := func() {
+		if ierr == nil {
+			_, _ = r.Run("read-tree", index)
+		}
+	}
+	if _, err := r.Run("add", "--all", "--", "."); err != nil {
+		restore()
+		return "", err
+	}
+	if _, err := r.Run("diff", "--cached", "--quiet"); err == nil {
+		return "", ErrNothingToCommit
+	}
+	if _, err := r.Run("commit", "--quiet", "-m", msg); err != nil {
+		restore()
+		return "", err
+	}
+	return r.Head()
+}
+
 // AddWorktree checks out a new branch, starting at base, in a new worktree
 // at path, and returns a Repo for the same vault folder inside it. path must
 // not exist yet. If r.Dir is a subfolder of the repo, the returned Repo's Dir
