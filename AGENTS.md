@@ -5,6 +5,7 @@
 ## Git workflow
 
 - `main` is read-only for agents. Work on a branch named `<issue>-<slug>` (a worktree when running in parallel), and hand off as a PR with `Closes #<n>`. The maintainer merges.
+- Current effort: PRs target the `v1` integration branch, not `main`. List every default you chose in the PR body under `Assumed:`; the maintainer reviews them all before `v1` merges into `main`.
 - Commit messages and PR titles use Conventional Commits. Breaking changes still get `!`, but ship as a minor bump: the version stays below v2, because a v2+ Go module needs a `/v2` import path.
 
 ## Implementation rules
