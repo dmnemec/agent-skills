@@ -15,7 +15,24 @@
           "start_line": 6,
           "end_line": 7,
           "hash": "bbe13e85ccc8bf1e",
-          "text": "- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n"
+          "text": "- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n",
+          "processed": false
+        }
+      ],
+      "blocks": [
+        {
+          "start_line": 1,
+          "end_line": 4,
+          "hash": "993ba18102dc89cb",
+          "text": "- harbor demo prep w/ Sana\n    - demo flow: ingest -\u003e ledgerline -\u003e ops dashboard\n    - Sana presents, Mira drives\n    - AI Mira: seed demo tenant data\n",
+          "processed": true
+        },
+        {
+          "start_line": 6,
+          "end_line": 7,
+          "hash": "bbe13e85ccc8bf1e",
+          "text": "- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n",
+          "processed": false
         }
       ]
     }

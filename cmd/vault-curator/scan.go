@@ -48,8 +48,12 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "%d candidate notes, %d new blocks\n", len(res.Candidates), res.NewBlockCount())
 	for _, c := range res.Candidates {
 		fmt.Fprintf(stdout, "  %s: %d new, %d processed\n", c.Path, len(c.NewBlocks), c.ProcessedBlocks)
-		for _, b := range c.NewBlocks {
-			fmt.Fprintf(stdout, "    lines %d-%d  %s\n", b.StartLine, b.EndLine, b.Hash)
+		for _, b := range c.Blocks {
+			mark := "new"
+			if b.Processed {
+				mark = "processed"
+			}
+			fmt.Fprintf(stdout, "    lines %d-%d  %s  %s\n", b.StartLine, b.EndLine, b.Hash, mark)
 		}
 	}
 	fmt.Fprintf(stdout, "%d notes, %d entities, %d links, %d broken links, %d orphans\n",
