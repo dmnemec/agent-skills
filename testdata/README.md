@@ -8,6 +8,7 @@ The fixture is plain files, not a git repo. Tests that need git copy `vault/` in
 
 - **Harbor** (`projects/Harbor.md`): an event ingest pipeline.
 - **Tidegate** (ingest gateway), **Ledgerline** (event store), **Beacon** (shared notification service): the component hubs in `components/`.
+- Typed edges (`part-of`, `calls`, `owned-by`, `depends-on`, `related-to`) live in frontmatter only. The component notes have no `## Edges` body section, so there is one copy to keep in step.
 - People: Mira Vantongeren (tech lead, the only person note), Teodor Quill, Sana Okafor-Lind, Oskar Fenwick, Lio Haverkamp. The last four have no notes, so a curate run should propose them as new entities rather than link them.
 
 ## What each file exercises
@@ -27,9 +28,9 @@ The fixture is plain files, not a git repo. Tests that need git copy `vault/` in
 | Curated meeting notes: frontmatter (`type`, `date`, `project`, `topics`) and the extracted sections | `meetings/2026-09-08 Tidegate rate limits.md`, `meetings/2026-09-10 Harbor kickoff.md` |
 | Open and done action items with inline `owner::` / `source::` fields | both meeting notes |
 | Project hub with `aliases`, `repos` and `links` | `projects/Harbor.md` |
-| Component hubs with typed edges: `part-of`, `calls`, `owned-by` | `components/Tidegate.md` |
-| Typed edges: `part-of`, `owned-by` | `components/Ledgerline.md` |
-| Typed edges: `depends-on`, `related-to` | `components/Beacon.md` |
+| Component hubs with typed edges in frontmatter: `part-of`, `calls`, `owned-by` | `components/Tidegate.md` |
+| Typed edges in frontmatter: `part-of`, `owned-by` | `components/Ledgerline.md` |
+| Typed edges in frontmatter: `depends-on`, `related-to` | `components/Beacon.md` |
 | Person note | `people/Mira Vantongeren.md` |
 | `Unsorted` fallback hub | `Unsorted.md` |
 | Orphan note, links to no hub | `Coffee machine options.md` |
