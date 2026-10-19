@@ -1,0 +1,12 @@
+# Build output (binaries ship as GitHub release assets)
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
