@@ -70,7 +70,8 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 			OK      bool          `json:"ok"`
 			Errors  []*plan.Error `json:"errors"`
 			Changes []change      `json:"changes"`
-		}{OK: r.OK(), Errors: r.Errors, Changes: []change{}}
+			Kept    []string      `json:"kept"`
+		}{OK: r.OK(), Errors: r.Errors, Changes: []change{}, Kept: append([]string{}, r.Kept...)}
 		if out.Errors == nil {
 			out.Errors = []*plan.Error{}
 		}
@@ -92,6 +93,9 @@ func runValidate(args []string, stdout, stderr io.Writer) int {
 				verb = "create"
 			}
 			fmt.Fprintf(stdout, "  %s %s (%s)\n", verb, c.Path, strings.Join(c.Ops, ", "))
+		}
+		for _, k := range r.Kept {
+			fmt.Fprintf(stdout, "  keep %s\n", k)
 		}
 	} else {
 		for _, e := range r.Errors {

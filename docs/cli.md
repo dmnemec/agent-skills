@@ -229,7 +229,7 @@ Exit codes: 0 on success, 1 on failure (a plan that fails `validate --draft`, a 
 ### The review document
 
 1. A summary: operations per category and tier, their statuses, and the notes the plan changes.
-2. One section per category, in the order splits, new entities, new notes, restructures, frontmatter, links. Each starts with the category's status line. Splits show every bullet of the split note, by line, under the note it goes to (the lossless mapping), then the note as it reads after the plan. Every split, create and rewrite has its own section with the resulting content; a rewrite shows the note before and after. Auto `set_frontmatter` and `add_links` operations take one line each.
+2. One section per category, in the order splits, new entities, new notes, restructures, frontmatter, links, kept notes. Each starts with the category's status line. Splits show every bullet of the split note, by line, under the note it goes to (the lossless mapping), then the note as it reads after the plan. Every split, create and rewrite has its own section with the resulting content; a rewrite shows the note before and after. Auto `set_frontmatter`, `add_links` and `keep` operations take one line each.
 
 Note content appears only in fenced code blocks, so links in a review saved inside the vault add nothing to its graph. The review of the example plan (with every status pending) is pinned in [`internal/vaultcurator/review/testdata/2026-09-14.review.golden.md`](../internal/vaultcurator/review/testdata/2026-09-14.review.golden.md).
 
@@ -264,11 +264,11 @@ vault-curator apply --vault <path> [--branch <name>] [--worktree-root <folder>] 
 
 Carries out a reviewed plan without touching the vault's working tree, so Obsidian and the nightly cron push see nothing until the user merges.
 
-1. **Validates** the plan against the working tree, exactly as `validate` does (without `--draft`); that is what scan read, uncommitted edits included. Any error stops apply before anything is committed or created, and the errors are printed as `validate` prints them. A plan whose approved operations change nothing is refused too.
+1. **Validates** the plan against the working tree, exactly as `validate` does (without `--draft`); that is what scan read, uncommitted edits included. Any error stops apply before anything is committed or created, and the errors are printed as `validate` prints them. A plan with no approved operation that writes or keeps a note is refused too.
 2. **Snapshots uncommitted changes.** The worktree starts from `HEAD`, so if anything under the vault folder is modified, staged or untracked, apply first commits it on the current branch as `curate: snapshot before apply`, with the vault's git hooks running. Only the vault folder is staged (`git add --all -- <vault>`); changes elsewhere in a larger repo are left as they are. If changes outside the vault folder are already staged, apply refuses rather than sweep them into the snapshot. A failed snapshot commit puts the index back as it was. A clean vault gets no snapshot.
 3. **Creates a worktree** on a new branch starting at `HEAD` (the snapshot, if any). The branch is `--branch`, default `curate/<UTC time>` such as `curate/20261018-142501`; an existing branch is an error. The worktree is `<root>/vault-curator-<random>/<branch with / as ->`, where `<root>` is `--worktree-root` (default the OS temp folder). It must be outside the repo, so it is never inside the vault.
-4. **Writes** each changed note's post-plan content, after checking every note still matches what was validated. Each written note's blocks are recorded as processed in `.vault-curator/state.json` (see [State file](#state-file)).
-5. **Commits** everything in the worktree as `curate: apply plan to N notes`, with one line per note in the body. The vault's git hooks run; a failing hook fails apply.
+4. **Writes** each changed note's post-plan content, after checking every note still matches what was validated. Each written note's blocks are recorded as processed in `.vault-curator/state.json` (see [State file](#state-file)), and so is every block of each note an approved `keep` names, which changes no content. A plan of only `keep` operations writes just the state file.
+5. **Commits** everything in the worktree as `curate: apply plan to N notes` (`curate: keep N notes as is` when nothing is written), with one line per note in the body. The vault's git hooks run; a failing hook fails apply.
 
 Any failure after step 2 removes the worktree, its folder and the branch, so a failed apply leaves nothing but the snapshot commit, which holds only the user's own edits.
 
@@ -280,7 +280,7 @@ applied 7 notes on branch curate/20261018-142501
 worktree: /tmp/vault-curator-1234/curate-20261018-142501
   update Coffee machine options.md (links-coffee)
   create meetings/2026-09-14 Beacon sync.md (split-beacon)
-  ...
+  keep daily/2026-09-15.md
 merge curate/20261018-142501 into your branch, then run: vault-curator watermark --vault <path>
 ```
 
@@ -297,7 +297,8 @@ With `--json`:
   "commit": "<curation commit>",
   "changes": [
     { "path": "meetings/2026-09-14 Beacon sync.md", "created": true, "ops": ["split-beacon"] }
-  ]
+  ],
+  "kept": ["daily/2026-09-15.md"]
 }
 ```
 
@@ -309,6 +310,7 @@ With `--json`:
 | `snapshot` | The commit of the vault's uncommitted changes on the current branch. Optional: omitted when the vault was clean. |
 | `base`, `commit` | The vault's `HEAD` the branch starts from (after the snapshot), and the curation commit. |
 | `changes[]` | The notes written, as in `validate --json`. |
+| `kept[]` | The notes kept as is: their blocks are marked processed, their content is unchanged. |
 
 When the plan is invalid, `--json` prints `{"ok": false, "errors": [...]}` (errors as in `validate --json`), and the errors also go to stderr.
 

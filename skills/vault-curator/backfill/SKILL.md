@@ -39,7 +39,7 @@ Take the notes from the step 2 scan. Do curate steps 4 to 9 on exactly these not
 
 Done when the user has merged the branch, `vault-curator watermark --vault <vault>` exits 0, and a fresh `scan --all --limit <N>` no longer lists this batch's notes.
 
-A note whose operations were all rejected is not written, so its blocks stay unprocessed and it returns in the next batch. When the same note comes back twice, ask the user whether to skip it for now.
+Every note in the batch ends processed: a note that needs no change gets a `keep` operation in the plan. A note whose operations the user rejected stays unprocessed and returns in the next batch; for a note the user wants left alone, propose `keep` for it in that batch.
 
 ## 5. Repeat or finish
 

@@ -32,7 +32,7 @@ Every operation has these fields:
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `id` | string | Unique within the plan. Errors and review refer to it. |
-| `op` | string | What the operation does: `rewrite`, `split`, `create`, `set_frontmatter` or `add_links`. |
+| `op` | string | What the operation does: `rewrite`, `split`, `create`, `set_frontmatter`, `add_links` or `keep`. |
 | `category` | string | Review group, approved together. Must fit `op` (table below). |
 | `tier` | string | `auto` or `approve-each` (design.md, "Autonomy tiers"). It may be raised from `auto` to `approve-each`, never lowered. `never` is always rejected. |
 | `status` | string | `pending`, `approved` or `rejected`. Only `approved` operations are applied; `rejected` ones are skipped. |
@@ -47,6 +47,7 @@ The other fields depend on `op`. A field an op does not take is an error.
 | `create` | `entity` (people, projects, components) or `note` | `approve-each` | `path`, `content` |
 | `set_frontmatter` | `frontmatter` | `auto` | `note`, `frontmatter` |
 | `add_links` | `links` | `auto` | `note`, `links` |
+| `keep` | `keep` | `auto` | `note` |
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -65,6 +66,19 @@ The other fields depend on `op`. A field an op does not take is an error.
 - **create** makes a new note that moves no content, such as an entity stub. Its content may hold headings, frontmatter and link-only bullets, but no other bullets, since that would be invented content.
 - **set_frontmatter** sets fields in `note`'s frontmatter, adding a frontmatter block if there is none. The frontmatter is re-encoded; the body is untouched.
 - **add_links** appends link bullets to `note`, such as filing an orphan under a hub.
+- **keep** records "reviewed, keep as is" for `note`. It changes no content. On apply, every block of the note is marked processed in the state file (committed with the curation), so `scan` and `scan --all` stop listing the note until it gets new blocks. Without a `keep`, a note that needs no change, or whose operations were all rejected, is never marked and returns in every later scan. Review lists kept notes last, under "Kept notes". A plan whose only approved operations are `keep` applies. `keep` is an error when the note does not exist, when another operation in the plan touches the note (a rejected operation does not count), or when the note already has a `keep`.
+
+```json
+{
+  "id": "keep-coffee",
+  "op": "keep",
+  "category": "keep",
+  "tier": "auto",
+  "status": "pending",
+  "summary": "Already linked and structured; nothing to change",
+  "note": "daily/2026-09-15.md"
+}
+```
 
 ### Merging entities
 
@@ -94,7 +108,7 @@ A block can be split between operations by giving each a different range, as `sp
 2. Each `set_frontmatter` on the note, in plan order.
 3. Each `add_links` on the note, in plan order.
 
-Notes whose content ends up unchanged are not written.
+Notes whose content ends up unchanged are not written. Kept notes are not written either: `validate` returns them separately (`Result.Kept`, `kept` in `--json`), and `apply` marks their blocks processed.
 
 ## Checks
 

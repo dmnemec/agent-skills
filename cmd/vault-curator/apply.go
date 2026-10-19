@@ -85,7 +85,8 @@ func runApply(args []string, stdout, stderr io.Writer) int {
 			OK bool `json:"ok"`
 			*apply.Result
 			Changes []change `json:"changes"`
-		}{OK: true, Result: res, Changes: []change{}}
+			Kept    []string `json:"kept"`
+		}{OK: true, Result: res, Changes: []change{}, Kept: append([]string{}, res.Kept...)}
 		for _, c := range res.Changes {
 			out.Changes = append(out.Changes, change{Path: c.Path, Created: c.Created(), Ops: c.Ops})
 		}
@@ -106,6 +107,9 @@ func runApply(args []string, stdout, stderr io.Writer) int {
 			verb = "create"
 		}
 		fmt.Fprintf(stdout, "  %s %s (%s)\n", verb, c.Path, strings.Join(c.Ops, ", "))
+	}
+	for _, k := range res.Kept {
+		fmt.Fprintf(stdout, "  keep %s\n", k)
 	}
 	fmt.Fprintf(stdout, "merge %s into your branch, then run: vault-curator watermark --vault %s\n", res.Branch, *vaultDir)
 	return 0
