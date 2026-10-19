@@ -65,3 +65,7 @@ The fixture is plain files, not a git repo. Tests that need git copy `vault/` in
 - `title` is the topic part of the split note's title; the split note is named `<date> <title>`.
 - `primary` lists the one or two notes the segment is about, by note name. These drive hub timelines. Everything else mentioned is a link only.
 - `cue` explains the boundary for a human reader. Tests ignore it.
+
+## Plans
+
+`plans/2026-09-14.json` is a valid curation plan against `vault/` (the complete example in [docs/plan.md](../docs/plan.md)): it splits `daily/2026-09-14.md` per `expected/2026-09-14.json`. Plan tests mutate it to check that validation fails.
