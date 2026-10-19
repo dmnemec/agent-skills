@@ -2,6 +2,9 @@ package scan_test
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/gittest"
@@ -137,6 +140,34 @@ func TestRewriteFromScanValidates(t *testing.T) {
 	p.Operations[0].Sources = sources[1:]
 	if v := plan.Validate(res.Vault, p, plan.Options{Draft: true}); v.OK() {
 		t.Error("rewrite mapping only the new block validates, want unmapped bullets")
+	}
+}
+
+// Ticking an action item in a processed note must not make its block new.
+func TestTickingActionItemAddsNoNewBlocks(t *testing.T) {
+	r := curated(t)
+	const meeting = "meetings/2026-09-08 Tidegate rate limits.md"
+	src, err := os.ReadFile(filepath.Join(r.Dir, meeting))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ticked := strings.Replace(string(src), "- [ ] Prototype in-process", "- [x] Prototype in-process", 1)
+	if ticked == string(src) {
+		t.Fatal("fixture has no action item to tick")
+	}
+	gittest.WriteFile(t, r, meeting, ticked)
+	gittest.Commit(t, r, "nightly")
+	res, err := scan.Run(r.Dir, scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range res.Candidates {
+		if len(c.NewBlocks) != 0 {
+			t.Errorf("%s has new blocks after ticking: %+v", c.Path, c.NewBlocks)
+		}
+	}
+	if len(res.Candidates) != 1 || res.Candidates[0].Path != meeting {
+		t.Errorf("candidates = %v, want only the edited note", paths(res))
 	}
 }
 

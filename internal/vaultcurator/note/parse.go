@@ -299,7 +299,7 @@ func (p *parser) block(i, j int) Block {
 	norm := make([]string, len(b.Items))
 	for k := range b.Items {
 		b.Items[k].Normalized = Normalize(b.Items[k].Text)
-		norm[k] = b.Items[k].Normalized
+		norm[k] = uncheck(b.Items[k].Normalized)
 	}
 	b.Hash = hashText(strings.Join(norm, "\n"))
 	return b
@@ -336,7 +336,8 @@ func (p *parser) flushText(i int) {
 // Normalize returns the comparison form of bullet text: on each line, leading
 // whitespace and one list marker are removed, then the text is lowercased and
 // every run of whitespace (line breaks included) becomes a single space.
-// Checkbox state ("[ ]", "[x]") and all other punctuation are kept.
+// Checkbox state ("[ ]", "[x]") and all other punctuation are kept here; only
+// the block hash ignores checkbox state.
 func Normalize(s string) string {
 	var words []string
 	for _, ln := range strings.Split(s, "\n") {
@@ -347,6 +348,15 @@ func Normalize(s string) string {
 		words = append(words, strings.Fields(strings.ToLower(rest))...)
 	}
 	return strings.Join(words, " ")
+}
+
+// uncheck folds a leading checkbox ("[ ]" or "[x]", already lowercased) of a
+// normalized item to "[ ]", so ticking an action item keeps its block's hash.
+func uncheck(s string) string {
+	if strings.HasPrefix(s, "[x]") && (len(s) == 3 || s[3] == ' ') {
+		return "[ ]" + s[3:]
+	}
+	return s
 }
 
 // hashText returns the first 16 hex digits of the SHA-256 of s.

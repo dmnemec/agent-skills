@@ -153,6 +153,29 @@ func TestFrontmatter(t *testing.T) {
 	}
 }
 
+func TestBlockHashIgnoresCheckboxState(t *testing.T) {
+	hash := func(src string) string {
+		return Parse("x.md", []byte(src)).Blocks[0].Hash
+	}
+	open := hash("- [ ] Send the report [owner:: [[Alice]]]\n- [ ] Book room\n")
+	for _, s := range []string{
+		"- [x] Send the report [owner:: [[Alice]]]\n- [ ] Book room\n",
+		"- [X] Send the report [owner:: [[Alice]]]\n- [X] Book room\n",
+		"* [x]   send the report [owner:: [[Alice]]]\n- [x] Book room\n",
+	} {
+		if h := hash(s); h != open {
+			t.Errorf("%q hashes %s, want %s", s, h, open)
+		}
+	}
+	if h := hash("- [ ] Send the reports [owner:: [[Alice]]]\n- [ ] Book room\n"); h == open {
+		t.Error("different text hashes the same")
+	}
+	n := Parse("x.md", []byte("- [x] Book room\n"))
+	if got := n.Blocks[0].Items[0].Normalized; got != "[x] book room" {
+		t.Errorf("Normalized = %q, want checkbox kept", got)
+	}
+}
+
 func TestBlockHashIgnoresFormatting(t *testing.T) {
 	hash := func(src string) string {
 		t.Helper()

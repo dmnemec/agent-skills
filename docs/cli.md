@@ -115,7 +115,7 @@ All paths are vault-relative with forward slashes. Arrays are always present (em
 | `candidates[].new_blocks[]` | Unprocessed top-level blocks, in file order. Empty means nothing new. Same fields as `blocks[]`. |
 | `candidates[].blocks[]` | Every top-level block of the note, processed or not, in file order. A `rewrite` maps them all. |
 | `blocks[].start_line`, `.end_line` | 1-based, inclusive line range in the note. |
-| `blocks[].hash` | The block's content hash: 16 hex characters, stable across reindenting, marker and case changes. Plans refer to blocks by it. |
+| `blocks[].hash` | The block's content hash: 16 hex characters, stable across reindenting, marker and case changes, and across ticking or unticking a checkbox (`[ ]`, `[x]`, `[X]`), so closing an action item does not make its block new. Plans refer to blocks by it. |
 | `blocks[].heading` | Text of the nearest heading above the block. Optional. |
 | `blocks[].text` | The block's raw source, including its final newline. |
 | `blocks[].processed` | True when an earlier curation already processed the block. Always false in `new_blocks[]`. |
