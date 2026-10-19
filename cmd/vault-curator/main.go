@@ -19,6 +19,8 @@ commands:
   scan      list notes and blocks changed since the watermark (--vault, --json)
   validate  check a curation plan against the vault (--vault, --draft, --json)
   review    render a plan for review, or sync edited statuses back (--vault, --sync)
+  apply     apply an approved plan on a new branch in a worktree (--vault, --branch, --json)
+  watermark after merging a curation branch, move the watermark and clean up (--vault, --json)
 `
 
 func main() {
@@ -40,6 +42,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runValidate(args[1:], stdout, stderr)
 	case "review":
 		return runReview(args[1:], stdout, stderr)
+	case "apply":
+		return runApply(args[1:], stdout, stderr)
+	case "watermark":
+		return runWatermark(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n\n%s", args[0], usage)
 		return 2

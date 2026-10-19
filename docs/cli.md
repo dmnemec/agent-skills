@@ -167,3 +167,98 @@ The first line of the review is a hidden comment holding the plan's hash:
 ```
 
 It is the SHA-256 of the plan as `plan.Marshal` writes it with every status cleared, so syncing, which changes only statuses, keeps it valid. Any other change to the plan since the review was rendered, or a missing comment, fails the sync: render the review again.
+
+## apply
+
+```
+vault-curator apply --vault <path> [--branch <name>] [--worktree-root <folder>] [--json] <plan.json>
+```
+
+Carries out a reviewed plan without touching the vault's working tree, so Obsidian and the nightly cron push see nothing until the user merges.
+
+1. **Validates** the plan against the working tree, exactly as `validate` does (without `--draft`); that is what scan read, uncommitted edits included. Any error stops apply before anything is committed or created, and the errors are printed as `validate` prints them. A plan whose approved operations change nothing is refused too.
+2. **Snapshots uncommitted changes.** The worktree starts from `HEAD`, so if anything under the vault folder is modified, staged or untracked, apply first commits it on the current branch as `curate: snapshot before apply`, with the vault's git hooks running. Only the vault folder is staged (`git add --all -- <vault>`); changes elsewhere in a larger repo are left as they are. If changes outside the vault folder are already staged, apply refuses rather than sweep them into the snapshot. A failed snapshot commit puts the index back as it was. A clean vault gets no snapshot.
+3. **Creates a worktree** on a new branch starting at `HEAD` (the snapshot, if any). The branch is `--branch`, default `curate/<UTC time>` such as `curate/20261018-142501`; an existing branch is an error. The worktree is `<root>/vault-curator-<random>/<branch with / as ->`, where `<root>` is `--worktree-root` (default the OS temp folder). It must be outside the repo, so it is never inside the vault.
+4. **Writes** each changed note's post-plan content, after checking every note still matches what was validated. Each written note's blocks are recorded as processed in `.vault-curator/state.json` (see [State file](#state-file)).
+5. **Commits** everything in the worktree as `curate: apply plan to N notes`, with one line per note in the body. The vault's git hooks run; a failing hook fails apply.
+
+Any failure after step 2 removes the worktree, its folder and the branch, so a failed apply leaves nothing but the snapshot commit, which holds only the user's own edits.
+
+Without `--json`, prints (the first line only when a snapshot was made):
+
+```
+committed uncommitted vault changes first: snapshot 9b1c04e7a2d3
+applied 7 notes on branch curate/20261018-142501
+worktree: /tmp/vault-curator-1234/curate-20261018-142501
+  update Coffee machine options.md (links-coffee)
+  create meetings/2026-09-14 Beacon sync.md (split-beacon)
+  ...
+merge curate/20261018-142501 into your branch, then run: vault-curator watermark --vault <path>
+```
+
+With `--json`:
+
+```json
+{
+  "ok": true,
+  "branch": "curate/20261018-142501",
+  "worktree": "/tmp/vault-curator-1234/curate-20261018-142501",
+  "vault": "/tmp/vault-curator-1234/curate-20261018-142501",
+  "snapshot": "<snapshot commit>",
+  "base": "<commit the branch starts from>",
+  "commit": "<curation commit>",
+  "changes": [
+    { "path": "meetings/2026-09-14 Beacon sync.md", "created": true, "ops": ["split-beacon"] }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `branch` | The curation branch: one commit on top of `base`. |
+| `worktree` | Absolute path of the worktree. |
+| `vault` | The vault folder inside the worktree: `worktree` itself, or its subfolder when the vault is a folder in its repo. |
+| `snapshot` | The commit of the vault's uncommitted changes on the current branch. Optional: omitted when the vault was clean. |
+| `base`, `commit` | The vault's `HEAD` the branch starts from (after the snapshot), and the curation commit. |
+| `changes[]` | The notes written, as in `validate --json`. |
+
+When the plan is invalid, `--json` prints `{"ok": false, "errors": [...]}` (errors as in `validate --json`), and the errors also go to stderr.
+
+Exit codes: 0 on success, 1 on any failure (invalid plan, changes staged outside the vault folder, a failing hook, git errors), 2 on bad usage.
+
+## watermark
+
+```
+vault-curator watermark [--vault <path>] [--branch <name>] [--json]
+```
+
+Finishes a curation once the user has merged its branch into the vault's branch, by a merge commit or a fast-forward. Run it from the vault's main working tree; `--vault` defaults to `.`.
+
+1. Picks the curation branch: `--branch`, or else the only `curate/*` branch that is an ancestor of `HEAD`. If none is merged it refuses and names the unmerged ones; if several are, it asks for `--branch`.
+2. Refuses, changing nothing, when the branch is not an ancestor of `HEAD` (a squash or rebase merge is not detected), when it is the checked-out branch (watermark was run inside the worktree), or when its worktree has uncommitted changes.
+3. Moves the `vault-curator/watermark` tag to the curation commit (the branch tip), removes the worktree and its temp folder, and deletes the branch. A worktree already deleted by hand is pruned.
+
+The tag goes on the curation commit rather than the merge commit. The curated notes are identical in both, so a fresh scan does not list them; but notes the nightly cron committed on the main branch between apply and merge still differ from the curation commit, so they stay scan candidates instead of being skipped.
+
+Without `--json`, prints:
+
+```
+moved vault-curator/watermark to 3f2a9c81d0e4 (curate/20261018-142501)
+removed worktree /tmp/vault-curator-1234/curate-20261018-142501
+deleted branch curate/20261018-142501
+```
+
+With `--json`:
+
+```json
+{
+  "tag": "vault-curator/watermark",
+  "commit": "<curation commit>",
+  "branch": "curate/20261018-142501",
+  "worktree": "/tmp/vault-curator-1234/curate-20261018-142501"
+}
+```
+
+`worktree` is omitted when the worktree was already gone.
+
+Exit codes: 0 on success, 1 on failure (including an unmerged branch), 2 on bad usage.
