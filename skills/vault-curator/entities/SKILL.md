@@ -45,7 +45,7 @@ Done when the plan holds one operation set per seed, alias and merge verdict, an
 Merge B into A when B's notes and links should land on A. A plan deletes nothing, so a merge is an alias plus redirected links ([docs/plan.md](../../../docs/plan.md), "Merging entities"):
 
 1. A `set_frontmatter` on A adding B's name to `aliases`.
-2. Run `vault-curator entities --vault <vault> --links-to B --json`. For each note in `notes`, a `rewrite` (category `restructure`, tier `approve-each`) that changes each `[[B]]` to `[[A|B]]` and every other byte the same, including links in frontmatter, with one source per entry of `blocks`.
+2. Run `vault-curator entities --vault <vault> --links-to B --json`. For each note in `notes`, a `rewrite` (category `restructure`, tier `approve-each`) that changes each `[[B]]` in the body to `[[A|B]]` and keeps every other byte the same, frontmatter included, with one source per entry of `blocks`. When the note links to B in frontmatter (`in_frontmatter` in `links`), add a `set_frontmatter` on it (category `frontmatter`, tier `approve-each`) that writes each such field's full value with `[[A|B]]` in place of `[[B]]`; a rewrite that changes frontmatter fails validation.
 3. Leave B's own note in place (plans delete nothing) and tell the user in the final report that it is now redundant; the alias takes over B's name.
 
 When B has no note, only plain-text mentions, step 1 alone is the merge.

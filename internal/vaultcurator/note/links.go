@@ -84,6 +84,34 @@ func extractLinks(src []byte, base int) []Link {
 	return links
 }
 
+// FencedLines reports, for each line of text (split on "\n"), the
+// indentation column of the fenced code block the line belongs to, opening
+// and closing fence lines included, or -1 for a line outside code. Fences
+// are found as ParseLinks finds them, at any indentation, so the lines it
+// marks are the ones ParseLinks skips. An unclosed fence runs to the end.
+func FencedLines(text string) []int {
+	lines := strings.Split(text, "\n")
+	out := make([]int, len(lines))
+	var f fence
+	inFence, col := false, -1
+	for i, l := range lines {
+		l = strings.TrimSuffix(l, "\r")
+		if inFence {
+			out[i] = col
+			inFence = !f.closes(l)
+			continue
+		}
+		c, rest := indent(l)
+		if f, inFence = openFence(rest); inFence {
+			col = c
+			out[i] = col
+			continue
+		}
+		out[i] = -1
+	}
+	return out
+}
+
 func wikiLink(t string, m []int, off, line int) Link {
 	inner := t[m[4]:m[5]]
 	target, label, _ := strings.Cut(inner, "|")

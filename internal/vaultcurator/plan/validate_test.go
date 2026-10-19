@@ -313,12 +313,15 @@ func small(files map[string]string) *vault.Vault {
 func hashOf(v *vault.Vault, p string, i int) string { return v.Note(p).Blocks[i].Hash }
 
 // A merge has no operation of its own. Alias B into A with set_frontmatter,
-// then redirect each note that links to B with a rewrite. B's own note stays.
+// then redirect each note that links to B: body links with a rewrite,
+// frontmatter links with set_frontmatter, all approve-each. B's own note
+// stays.
 func TestMergeEntitiesExpressible(t *testing.T) {
+	const syncFM = "---\ntype: meeting\nattendees:\n  - \"[[Ana B]]\"\n---\n"
 	v := small(map[string]string{
 		"People/Ana Baker.md": "---\ntype: person\n---\n# Ana Baker\n",
 		"People/Ana B.md":     "---\ntype: person\n---\n# Ana B\n",
-		"Sync.md":             "---\ntype: meeting\nattendees:\n  - \"[[Ana B]]\"\n---\n# Sync\n\n- ask [[Ana B]] to review\n    - [[Ana B|ana]] agreed\n",
+		"Sync.md":             syncFM + "# Sync\n\n- ask [[Ana B]] to review\n    - [[Ana B|ana]] agreed\n",
 	})
 	blk := v.Note("Sync.md").Blocks[0]
 	ops := []Operation{
@@ -330,11 +333,29 @@ func TestMergeEntitiesExpressible(t *testing.T) {
 			ID: "relink-sync", Op: Rewrite, Category: CategoryRestructure, Tier: TierApproveEach, Status: Approved,
 			Note:    "Sync.md",
 			Sources: []Source{{Note: "Sync.md", Block: blk.Hash, Lines: [2]int{blk.StartLine, blk.EndLine}}},
-			Content: "---\ntype: meeting\nattendees:\n  - \"[[Ana Baker|Ana B]]\"\n---\n# Sync\n\n- ask [[Ana Baker|Ana B]] to review\n    - [[Ana Baker|ana]] agreed\n",
+			Content: syncFM + "# Sync\n\n- ask [[Ana Baker|Ana B]] to review\n    - [[Ana Baker|ana]] agreed\n",
+		},
+		{
+			ID: "relink-sync-fm", Op: SetFrontmatter, Category: CategoryFrontmatter, Tier: TierApproveEach, Status: Approved,
+			Note: "Sync.md", Frontmatter: map[string]any{"attendees": []any{"[[Ana Baker|Ana B]]"}},
 		},
 	}
 	r := Validate(v, &Plan{Version: 1, Operations: ops}, Options{})
 	requireOK(t, r)
+	if got := string(change(t, r, "Sync.md").After); !strings.HasPrefix(got, "---\ntype: meeting\nattendees:\n  - \"[[Ana Baker|Ana B]]\"\n---\n# Sync\n") {
+		t.Errorf("frontmatter link not redirected:\n%s", got)
+	}
+
+	t.Run("relink at auto fails", func(t *testing.T) {
+		auto := append([]Operation(nil), ops...)
+		auto[1].Tier = TierAuto
+		requireErr(t, Validate(v, &Plan{Version: 1, Operations: auto}, Options{}).Errors, "relink-sync", "link [[Ana B]] is changed or removed")
+	})
+	t.Run("frontmatter relinked inside the rewrite fails", func(t *testing.T) {
+		inline := append([]Operation(nil), ops[:2]...)
+		inline[1].Content = strings.Replace(inline[1].Content, "[[Ana B]]\"", "[[Ana Baker|Ana B]]\"", 1)
+		requireErr(t, Validate(v, &Plan{Version: 1, Operations: inline}, Options{}).Errors, "relink-sync", "frontmatter is not kept byte for byte")
+	})
 	after := string(change(t, r, "Sync.md").After)
 	if strings.Contains(after, "[[Ana B]]") || strings.Contains(after, "[[Ana B|") {
 		t.Errorf("links not redirected:\n%s", after)

@@ -127,7 +127,7 @@ Structure comes from note types, frontmatter and links, never from folders. Fron
 | Tier | Changes | Behavior |
 | --- | --- | --- |
 | Auto | Formatting, indentation, frontmatter, appended link suggestions, generated hub blocks | Applied once the plan is approved by category |
-| Approve each | Splits, renames, moves, merges, new entities, typed edges, supersedes links, ADR drafts | Listed individually in review |
+| Approve each | Splits, renames, moves, merges, new entities, typed edges, supersedes links, aliases, retargeted links, ADR drafts | Listed individually in review |
 | Never | Inventing content, silently dropping lines, closing action items | Not permitted |
 
 **Backfill.** On install, the backfill skill curates the existing vault (a few dozen notes today) in small reviewable batches. The first batch seeds entities (people, projects, components), because everything else links to them.
