@@ -1,0 +1,13 @@
+{
+  "note": "daily/2026-09-18.md",
+  "date": "2026-09-18",
+  "segments": [
+    {
+      "lines": [1, 4],
+      "kind": "meeting",
+      "title": "Harbor demo prep",
+      "primary": ["Harbor"],
+      "cue": "A single meeting: the correct answer is no split."
+    }
+  ]
+}
