@@ -230,20 +230,6 @@
       "line": 12
     },
     {
-      "from": "components/Beacon.md",
-      "to": "components/Ledgerline.md",
-      "target": "Ledgerline",
-      "raw": "[[Ledgerline]]",
-      "line": 16
-    },
-    {
-      "from": "components/Beacon.md",
-      "to": "components/Tidegate.md",
-      "target": "Tidegate",
-      "raw": "[[Tidegate]]",
-      "line": 17
-    },
-    {
       "from": "components/Ledgerline.md",
       "to": "projects/Harbor.md",
       "target": "Harbor",
@@ -275,24 +261,10 @@
     },
     {
       "from": "components/Ledgerline.md",
-      "to": "projects/Harbor.md",
-      "target": "Harbor",
-      "raw": "[[Harbor]]",
-      "line": 17
-    },
-    {
-      "from": "components/Ledgerline.md",
-      "to": "people/Mira Vantongeren.md",
-      "target": "Mira Vantongeren",
-      "raw": "[[Mira Vantongeren]]",
-      "line": 18
-    },
-    {
-      "from": "components/Ledgerline.md",
       "to": "archive/2025/q4/Ledgerline schema v2 notes.md",
       "target": "Ledgerline schema v2 notes",
       "raw": "[[Ledgerline schema v2 notes]]",
-      "line": 22
+      "line": 17
     },
     {
       "from": "components/Tidegate.md",
@@ -342,52 +314,10 @@
     },
     {
       "from": "components/Tidegate.md",
-      "to": "projects/Harbor.md",
-      "target": "Harbor",
-      "raw": "[[Harbor]]",
-      "line": 20
-    },
-    {
-      "from": "components/Tidegate.md",
-      "to": "components/Ledgerline.md",
-      "target": "Ledgerline",
-      "raw": "[[Ledgerline]]",
-      "line": 21
-    },
-    {
-      "from": "components/Tidegate.md",
-      "to": "meetings/2026-09-10 Harbor kickoff.md",
-      "target": "2026-09-10 Harbor kickoff",
-      "raw": "[[2026-09-10 Harbor kickoff]]",
-      "line": 21
-    },
-    {
-      "from": "components/Tidegate.md",
-      "to": "components/Beacon.md",
-      "target": "Beacon",
-      "raw": "[[Beacon]]",
-      "line": 22
-    },
-    {
-      "from": "components/Tidegate.md",
-      "to": "meetings/2026-09-08 Tidegate rate limits.md",
-      "target": "2026-09-08 Tidegate rate limits",
-      "raw": "[[2026-09-08 Tidegate rate limits]]",
-      "line": 22
-    },
-    {
-      "from": "components/Tidegate.md",
-      "to": "people/Mira Vantongeren.md",
-      "target": "Mira Vantongeren",
-      "raw": "[[Mira Vantongeren]]",
-      "line": 23
-    },
-    {
-      "from": "components/Tidegate.md",
       "to": "meetings/2026-09-08 Tidegate rate limits.md",
       "target": "2026-09-08 Tidegate rate limits",
       "raw": "[[2026-09-08 Tidegate rate limits#Decisions]]",
-      "line": 27
+      "line": 20
     },
     {
       "from": "daily/2026-09-08.md",
