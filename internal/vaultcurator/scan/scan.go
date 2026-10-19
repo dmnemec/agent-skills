@@ -7,6 +7,8 @@
 package scan
 
 import (
+	"sort"
+
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/gitx"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/note"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/state"
@@ -19,6 +21,12 @@ type Options struct {
 	Tag string
 	// FallbackHub is passed to vault.Load.
 	FallbackHub string
+	// All ignores the watermark: the candidates are the notes with at least
+	// one unprocessed block, which is how backfill walks old notes.
+	All bool
+	// Limit caps the number of candidates, taken in path order. Zero means
+	// no cap.
+	Limit int
 }
 
 // Result is a scan's output.
@@ -27,6 +35,9 @@ type Result struct {
 	// Candidates are the notes changed since the watermark (every note when
 	// there is none), sorted by path, with their unprocessed blocks.
 	Candidates []Candidate `json:"candidates"`
+	// Remaining counts the candidates left out by Limit; 0 when nothing was
+	// cut. Backfill is finished when it reaches 0.
+	Remaining int `json:"remaining"`
 	// Notes are every note in the vault, sorted by path.
 	Notes []NoteInfo `json:"notes"`
 	// Entities are the project, component and person notes and the
@@ -152,7 +163,14 @@ func Run(root string, opts Options) (*Result, error) {
 	}
 
 	changed := v.Notes
-	if ok {
+	if opts.All {
+		changed = nil
+		for _, n := range v.Notes {
+			if len(st.NewBlocks(n)) > 0 {
+				changed = append(changed, n)
+			}
+		}
+	} else if ok {
 		paths, err := repo.ChangedSince(commit)
 		if err != nil {
 			return nil, err
@@ -165,6 +183,11 @@ func Run(root string, opts Options) (*Result, error) {
 				changed = append(changed, n)
 			}
 		}
+	}
+	sort.Slice(changed, func(i, j int) bool { return changed[i].Path < changed[j].Path })
+	if opts.Limit > 0 && len(changed) > opts.Limit {
+		r.Remaining = len(changed) - opts.Limit
+		changed = changed[:opts.Limit]
 	}
 	for _, n := range changed {
 		r.Candidates = append(r.Candidates, candidate(n, st))
