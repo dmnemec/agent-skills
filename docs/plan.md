@@ -66,6 +66,10 @@ The other fields depend on `op`. A field an op does not take is an error.
 - **set_frontmatter** sets fields in `note`'s frontmatter, adding a frontmatter block if there is none. The frontmatter is re-encoded; the body is untouched.
 - **add_links** appends link bullets to `note`, such as filing an orphan under a hub.
 
+### Merging entities
+
+There is no merge operation: alias entity B into A with a `set_frontmatter` on A (`"aliases"`: the full list, B's name added), then redirect every note that links to B with a `rewrite` that changes `[[B]]` to `[[A|B]]` (the lossless check reads a link as its shown text, so this passes). Links in frontmatter change inside the rewrite's `content`. B's own note stays, since a plan deletes nothing; once the user has moved its content into A and deleted it by hand, links to B resolve through the alias. [`vault-curator entities --links-to B`](cli.md#links-to-a-note) lists the linking notes and the blocks a rewrite must map. A test pins this in `internal/vaultcurator/plan`.
+
 ### Sources
 
 A source names a run of original bullets by the block they are in:
