@@ -13,7 +13,7 @@ Rules for every step:
 - Announce each change to the machine before you make it.
 - Ask the user to confirm before `git init` and before editing any file outside the vault-curator install (the home-directory `AGENTS.md`).
 
-## 1. Binary
+## 1. Binary (state: setup.binary)
 
 Run `vault-curator version`. Latest is the newest tag from `git ls-remote --tags https://github.com/dmnemec/agent-skills`, or the version `go install` resolves if there are no tags.
 
@@ -23,7 +23,7 @@ Run `vault-curator version`. Latest is the newest tag from `git ls-remote --tags
 
 Done when `vault-curator version` exits 0 and prints a version at least as new as latest. A `dev` build counts as current.
 
-## 2. Vault
+## 2. Vault (state: setup.vault)
 
 Read the `## Notes vault` section of `~/AGENTS.md` first. If it names a folder that exists, that is `<vault>`.
 
@@ -33,7 +33,7 @@ Then run `git -C <vault> rev-parse --show-toplevel`. If `<vault>` is not in a gi
 
 Done when `<vault>` exists, holds markdown, and `git -C <vault> rev-parse --show-toplevel` exits 0.
 
-## 3. Record the vault
+## 3. Record the vault (state: setup.record)
 
 Two files. `~/AGENTS.md` (`%USERPROFILE%\AGENTS.md` on Windows) is the single source of the vault path; the running product's global instructions file must load it.
 
@@ -62,7 +62,7 @@ If the file itself does not exist, say you will create it, wait for a yes, then 
 
 Done when the running product's global file contains `@~/AGENTS.md` exactly once (import case) or exactly one `## Notes vault` section matching `~/AGENTS.md` (copy case), and `~/AGENTS.md` holds exactly one `## Notes vault` section naming `<vault>`.
 
-## 4. Skills
+## 4. Skills (state: setup.skills)
 
 `<repo>` is the clone of https://github.com/dmnemec/agent-skills that contains this skill (follow the symlink to find it). If this skill was copied out of a clone, clone the repo to `~/agent-skills` and use that.
 
@@ -72,7 +72,7 @@ For each skill folder not already present there, symlink it from `<repo>` (copy 
 
 Done when all four folders are present in the skills location, each containing a `SKILL.md`. If you installed any, tell the user to start a new agent session so it loads them.
 
-## 5. First scan
+## 5. First scan (state: setup.scan)
 
 Run `vault-curator scan --vault <vault>` (read-only). Report the candidate count and whether the watermark exists (`--json` gives `watermark.exists`).
 
