@@ -7,10 +7,25 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 )
 
 // version is overridden at build time with -ldflags "-X main.version=...".
 var version = "dev"
+
+// resolveVersion picks the version to report: the ldflags value when it is set,
+// else the module version from build info (set by go install ...@version and
+// go build in a tagged module), else "dev". "(devel)" means a local build with
+// no version, so it counts as unset.
+func resolveVersion(ldflags string, info *debug.BuildInfo, ok bool) string {
+	if ldflags != "dev" {
+		return ldflags
+	}
+	if ok && info != nil && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "dev"
+}
 
 const usage = `usage: vault-curator <command> [flags]
 
@@ -34,7 +49,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	switch args[0] {
 	case "version":
-		fmt.Fprintln(stdout, version)
+		info, ok := debug.ReadBuildInfo()
+		fmt.Fprintln(stdout, resolveVersion(version, info, ok))
 		return 0
 	case "scan":
 		return runScan(args[1:], stdout, stderr)
