@@ -75,7 +75,7 @@ func TestAppendAfterTagShowsOnlyNewBlock(t *testing.T) {
 	}
 
 	gittest.AppendFile(t, r, daily, "\n- coffee w/ Lio\n    - beacon webhook contract draft is up\n")
-	gittest.Commit(t, r, "nightly") // the cron commit does not move the tag
+	gittest.Commit(t, r, "sync") // a commit made outside curation does not move the tag
 	res, err = scan.Run(r.Dir, scan.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -111,7 +111,7 @@ func TestAppendAfterTagShowsOnlyNewBlock(t *testing.T) {
 func TestRewriteFromScanValidates(t *testing.T) {
 	r := curated(t)
 	gittest.AppendFile(t, r, daily, "\n- coffee w/ Lio\n    - beacon webhook contract draft is up\n")
-	gittest.Commit(t, r, "nightly")
+	gittest.Commit(t, r, "sync")
 	res, err := scan.Run(r.Dir, scan.Options{})
 	if err != nil {
 		t.Fatal(err)

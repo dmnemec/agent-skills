@@ -32,7 +32,7 @@ Exit codes: 0 on success, 1 when the scan fails (for example, the vault is not i
 
 ### How candidates are chosen
 
-1. **Watermark.** The git tag `vault-curator/watermark` marks the last curation commit. Only curation moves it; the nightly cron commit never does.
+1. **Watermark.** The git tag `vault-curator/watermark` marks the last curation commit. Only curation moves it; commits made outside curation (by you, an editor plugin or a scheduled sync) never do.
 2. **Changed notes.** With the tag, a note is a candidate when it differs from the tagged commit: committed since, modified in the work tree, staged, or new and untracked (but not ignored). Deleted notes are not listed. Without the tag, every note is a candidate.
 3. **New blocks.** Inside a candidate, every top-level bullet block is listed in `blocks`, each marked `processed` or not, and the ones not yet processed are also listed in `new_blocks`. A `rewrite` must map every block of its note (see [plan.md](plan.md)); a split usually takes only new ones. Processed block hashes live in `.vault-curator/state.json`, committed in the vault. A block whose content changes gets a new hash and is listed again; an identical copy of a processed block is listed once per extra copy.
 
@@ -262,7 +262,7 @@ It is the SHA-256 of the plan as `plan.Marshal` writes it with every status clea
 vault-curator apply --vault <path> [--branch <name>] [--worktree-root <folder>] [--json] <plan.json>
 ```
 
-Carries out a reviewed plan without touching the vault's working tree, so Obsidian and the nightly cron push see nothing until the user merges.
+Carries out a reviewed plan without touching the vault's working tree, so nothing changes in Obsidian or on your branch until you merge.
 
 1. **Validates** the plan against the working tree, exactly as `validate` does (without `--draft`); that is what scan read, uncommitted edits included. Any error stops apply before anything is committed or created, and the errors are printed as `validate` prints them. A plan with no approved operation that writes or keeps a note is refused too.
 2. **Snapshots uncommitted changes.** The worktree starts from `HEAD`, so if anything under the vault folder is modified, staged or untracked, apply first commits it on the current branch as `curate: snapshot before apply`, with the vault's git hooks running. Only the vault folder is staged (`git add --all -- <vault>`); changes elsewhere in a larger repo are left as they are. If changes outside the vault folder are already staged, apply refuses rather than sweep them into the snapshot. A failed snapshot commit puts the index back as it was. A clean vault gets no snapshot.
@@ -328,7 +328,7 @@ Finishes a curation once the user has merged its branch into the vault's branch,
 2. Refuses, changing nothing, when the branch is not an ancestor of `HEAD` (a squash or rebase merge is not detected), when it is the checked-out branch (watermark was run inside the worktree), or when its worktree has uncommitted changes.
 3. Moves the `vault-curator/watermark` tag to the curation commit (the branch tip), removes the worktree and its temp folder, and deletes the branch. A worktree already deleted by hand is pruned.
 
-The tag goes on the curation commit rather than the merge commit. The curated notes are identical in both, so a fresh scan does not list them; but notes the nightly cron committed on the main branch between apply and merge still differ from the curation commit, so they stay scan candidates instead of being skipped.
+The tag goes on the curation commit rather than the merge commit. The curated notes are identical in both, so a fresh scan does not list them; but notes committed outside curation on the main branch between apply and merge still differ from the curation commit, so they stay scan candidates instead of being skipped.
 
 Without `--json`, prints:
 

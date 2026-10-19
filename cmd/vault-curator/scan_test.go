@@ -19,7 +19,7 @@ var update = flag.Bool("update", false, "rewrite golden files")
 const goldenScan = "testdata/scan.golden.json"
 
 // scanFixture is the synthetic vault after one curation (every block
-// processed, watermark tagged) and a later nightly commit that appended a
+// processed, watermark tagged) and a later sync commit that appended a
 // block to a daily note.
 func scanFixture(t *testing.T) *gitx.Repo {
 	t.Helper()
@@ -39,7 +39,7 @@ func scanFixture(t *testing.T) *gitx.Repo {
 		t.Fatal(err)
 	}
 	gittest.AppendFile(t, r, "daily/2026-09-18.md", "\n- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n")
-	gittest.Commit(t, r, "nightly")
+	gittest.Commit(t, r, "sync")
 	return r
 }
 

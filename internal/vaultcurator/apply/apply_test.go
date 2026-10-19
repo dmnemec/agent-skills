@@ -508,9 +508,9 @@ func TestWatermarkKeepsMainSideChanges(t *testing.T) {
 	if _, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()}); err != nil {
 		t.Fatal(err)
 	}
-	// The nightly cron commits a note edited while the branch waits.
+	// A scheduled sync commits a note edited while the branch waits.
 	gittest.AppendFile(t, r, "daily/2026-09-18.md", "- late entry\n")
-	gittest.Commit(t, r, "nightly")
+	gittest.Commit(t, r, "sync")
 	run(t, r, "merge", "--no-ff", "--quiet", "-m", "merge curation", testBranch)
 
 	if _, err := Watermark(r.Dir, WatermarkOptions{}); err != nil {
@@ -525,7 +525,7 @@ func TestWatermarkKeepsMainSideChanges(t *testing.T) {
 		paths = append(paths, c.Path)
 	}
 	if !reflect.DeepEqual(paths, []string{"daily/2026-09-18.md"}) {
-		t.Errorf("candidates = %v, want only the nightly edit", paths)
+		t.Errorf("candidates = %v, want only the sync edit", paths)
 	}
 }
 

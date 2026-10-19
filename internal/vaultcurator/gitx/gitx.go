@@ -19,8 +19,8 @@ import (
 )
 
 // WatermarkTag is the tag on the last curation commit. Files changed since it
-// are scan candidates. Only curation moves it; the nightly cron commit never
-// does.
+// are scan candidates. Only curation moves it; a commit made outside curation
+// never does.
 const WatermarkTag = "vault-curator/watermark"
 
 // ErrNotRepo is returned by Open when the directory is not inside a git work
