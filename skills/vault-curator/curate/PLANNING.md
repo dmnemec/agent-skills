@@ -18,7 +18,7 @@ Each split yields a new note titled `<date> <topic>` (a path such as `meetings/2
 
 ## Restructure inside a note
 
-Repair indentation, group points under `## Notes`, `## Decisions`, `## Constraints and requirements`, `## Open questions` and `## Action items`, and move each decision, constraint, open question or action item into its section out of the body. Reword nothing; add links around existing words (`[[Tidegate|tidegate]]`). Keep Mermaid blocks byte for byte. Leave `- [ ]` and `- [x]` as they are.
+Repair indentation, group points under `## Notes`, `## Decisions`, `## Constraints and requirements`, `## Open questions` and `## Action items`, and move each decision, constraint, open question or action item into its section out of the body. Keep every original heading and prose line, including a plain title line such as `harbor beta planning`: a rewrite's `content` must contain each one (turning it into a heading is fine; its words stay), and the plan lists no source for them. Reword nothing; add links around existing words (`[[Tidegate|tidegate]]`). Keep Mermaid blocks byte for byte. Leave `- [ ]` and `- [x]` as they are.
 
 ## Primary versus mention
 
