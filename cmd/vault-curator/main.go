@@ -32,6 +32,7 @@ const usage = `usage: vault-curator <command> [flags]
 commands:
   version   print the version
   scan      list notes and blocks changed since the watermark (--vault, --json)
+  entities  list entities and candidate entities in the vault (--vault, --json)
   validate  check a curation plan against the vault (--vault, --draft, --json)
   review    render a plan for review, or sync edited statuses back (--vault, --sync)
   apply     apply an approved plan on a new branch in a worktree (--vault, --branch, --json)
@@ -54,6 +55,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	case "scan":
 		return runScan(args[1:], stdout, stderr)
+	case "entities":
+		return runEntities(args[1:], stdout, stderr)
 	case "validate":
 		return runValidate(args[1:], stdout, stderr)
 	case "review":
