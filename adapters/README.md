@@ -5,7 +5,7 @@ vault-curator is a set of skill folders plus a CLI. The folders are the same for
 Common to all four:
 
 - Clone the repo once to `~/agent-skills`. The skill folders are `curate`, `backfill`, `entities` and `setup` under `~/agent-skills/skills/vault-curator/`.
-- Install by symlinking each folder into the product's skills location, so `git pull` updates it and the skills' links into `docs/` and `testdata/` stay reachable. If symlinks fail (Windows without developer mode), copy the folder instead; a copy still works from its `SKILL.md` and `PLANNING.md` alone.
+- Install by linking each folder into the product's skills location as `vault-curator-<folder>` (the skill's `name:`), so `git pull` updates it and the skills' links into `docs/` and `testdata/` stay reachable. On macOS and Linux that is a symlink; on Windows it is a directory junction, which needs no administrator rights or developer mode. A copy breaks those links: the skills read `docs/` for the plan format and the CLI output, so copy only when linking fails.
 - Install the binary first: `go install github.com/dmnemec/agent-skills/cmd/vault-curator@latest` (Go 1.24 or newer).
 - The setup skill writes the vault path to `~/AGENTS.md`:
 
@@ -19,7 +19,13 @@ Common to all four:
 - Start a new session after installing; skills are discovered at startup.
 - Run it: invoke the skill ("curate my vault") and answer in chat. The agent runs every command and edits every file; the only questions are the review decisions and a final confirmation before it merges.
 
-On Windows, replace `~` with `%USERPROFILE%` and copy instead of symlinking unless developer mode is on.
+On Windows, replace `~` with `%USERPROFILE%` and use a junction in place of `ln -s`, in `cmd`:
+
+```
+mklink /J %USERPROFILE%\.claude\skills\vault-curator-curate %USERPROFILE%\agent-skills\skills\vault-curator\curate
+```
+
+Repeat for `backfill`, `entities` and `setup`, with the product's skills location in place of `.claude\skills`.
 
 ## Claude Code
 
@@ -34,7 +40,7 @@ for s in curate backfill entities setup; do
 done
 ```
 
-Any folder name works as long as `SKILL.md` is inside. Fallback: copy the folders.
+Use the `vault-curator-<folder>` names: they match each skill's `name:`. Fallback: copy the folders.
 
 Symlinks: supported. The docs say symlinked skill folders work for the enterprise, personal and project locations.
 

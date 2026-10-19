@@ -1,5 +1,5 @@
 ---
-name: entities
+name: vault-curator-entities
 description: Seed, create, merge and alias entities (people, projects, components, systems) in the user's markdown (Obsidian) vault with vault-curator. Use when the user asks to seed or backfill entities, add a person, project, component or system note, merge duplicate entities, add an alias, or says a name should be a note.
 ---
 
@@ -13,13 +13,13 @@ Entity changes go in one batch: every seed, alias and merge in a single plan, so
 
 Do curate steps 1 and 2: locate the vault (`<vault>`) and check the binary.
 
-Done when `<vault>` is a folder inside a git work tree and `vault-curator version` exits 0.
+Done when `<vault>` is a folder inside a git work tree and `vault-curator version` exits 0; then go to step 2. On no vault or a missing binary, hand off to the setup skill at its step 1, exactly as curate steps 1 and 2 say.
 
 ## 2. List (state: entities.list)
 
 Run `vault-curator entities --vault <vault> --json`. Output shape and the candidate heuristic: [docs/cli.md](../../../docs/cli.md) under "entities".
 
-Done when you can name every existing entity with its aliases, and every candidate with its count.
+Done when you can name every existing entity with its aliases, and every candidate with its count; then go to step 3. On an empty `candidates` list, when the user asked for nothing specific, tell the user there is nothing to add and stop: the run is done.
 
 ## 3. Decide each candidate (state: entities.decide)
 
@@ -32,7 +32,7 @@ Read the occurrences (`path` and `line`) in the notes, then give each candidate 
 
 When the kind or the identity is unclear, ask the user rather than guess. Skip a name seen in one note only.
 
-Done when every candidate has a verdict and a one-line reason.
+Done when every candidate has a verdict and a one-line reason; then go to step 4. When every verdict is skip, tell the user and stop: the run is done.
 
 ## 4. Write the plan (state: entities.plan)
 
@@ -44,7 +44,7 @@ Write `<vault>/.vault-curator/plans/<UTC YYYYMMDD-HHMMSS>.json` with every `stat
 
 Mentions stay plain text; curate links them when it next handles those notes. Seeding adds the targets.
 
-Done when the plan holds one operation set per seed, alias and merge verdict, and every tier is `approve-each`.
+Done when the plan holds one operation set per seed, alias and merge verdict, and every tier is `approve-each`; then go to step 5.
 
 ## 5. Merge two entities (state: entities.merge)
 
@@ -56,10 +56,12 @@ Merge B into A when B's notes and links should land on A. A plan deletes nothing
 
 When B has no note, only plain-text mentions, step 1 alone is the merge.
 
-Done when every note that `--links-to B` lists has a `rewrite` in the plan, and each `summary` names A.
+Done when every note that `--links-to B` lists has a `rewrite` in the plan, and each `summary` names A (with no merge verdict, when the plan already holds every operation). Then go to curate step 5 (validate the draft) with this plan; curate steps 5 to 9 run as written, and its "Where the steps end" table says where each exit returns: `merged` to step 6, `nothing` is done, `replan` to step 2.
 
-## 6. Validate, review, apply (state: entities.report)
+## 6. Report (state: entities.report)
 
-Follow curate steps 5 to 9 on this plan: [validate the draft](../curate/SKILL.md), present the review in chat, record the decisions, apply, confirm and merge. The review groups seeds under "new entities"; tell the user which verdicts you were unsure of.
+Reached when [curate](../curate/SKILL.md) steps 5 to 9 exit `merged` on this plan. The review groups seeds under "new entities"; tell the user which verdicts you were unsure of.
 
-Done when the user has confirmed or declined the merge, and you have named the branch, the entity notes created, the aliases added and the merges applied.
+Done when you have named the branch, the entity notes created, the aliases added and the merges applied; then stop: the run is done.
+
+When the backfill skill started this run, skip this step: every exit of curate steps 5 to 9 goes to backfill step 5.
