@@ -311,6 +311,38 @@ func small(files map[string]string) *vault.Vault {
 
 func hashOf(v *vault.Vault, p string, i int) string { return v.Note(p).Blocks[i].Hash }
 
+// A merge has no operation of its own. Alias B into A with set_frontmatter,
+// then redirect each note that links to B with a rewrite. B's own note stays.
+func TestMergeEntitiesExpressible(t *testing.T) {
+	v := small(map[string]string{
+		"People/Ana Baker.md": "---\ntype: person\n---\n# Ana Baker\n",
+		"People/Ana B.md":     "---\ntype: person\n---\n# Ana B\n",
+		"Sync.md":             "---\ntype: meeting\nattendees:\n  - \"[[Ana B]]\"\n---\n# Sync\n\n- ask [[Ana B]] to review\n    - [[Ana B|ana]] agreed\n",
+	})
+	blk := v.Note("Sync.md").Blocks[0]
+	ops := []Operation{
+		{
+			ID: "alias-ana", Op: SetFrontmatter, Category: CategoryFrontmatter, Tier: TierApproveEach, Status: Approved,
+			Note: "People/Ana Baker.md", Frontmatter: map[string]any{"aliases": []any{"Ana B"}},
+		},
+		{
+			ID: "relink-sync", Op: Rewrite, Category: CategoryRestructure, Tier: TierApproveEach, Status: Approved,
+			Note:    "Sync.md",
+			Sources: []Source{{Note: "Sync.md", Block: blk.Hash, Lines: [2]int{blk.StartLine, blk.EndLine}}},
+			Content: "---\ntype: meeting\nattendees:\n  - \"[[Ana Baker|Ana B]]\"\n---\n# Sync\n\n- ask [[Ana Baker|Ana B]] to review\n    - [[Ana Baker|ana]] agreed\n",
+		},
+	}
+	r := Validate(v, &Plan{Version: 1, Operations: ops}, Options{})
+	requireOK(t, r)
+	after := string(change(t, r, "Sync.md").After)
+	if strings.Contains(after, "[[Ana B]]") || strings.Contains(after, "[[Ana B|") {
+		t.Errorf("links not redirected:\n%s", after)
+	}
+	if got := string(change(t, r, "People/Ana Baker.md").After); !strings.Contains(got, "aliases:\n  - Ana B\n") {
+		t.Errorf("alias not written:\n%s", got)
+	}
+}
+
 const meeting = "---\ntype: meeting\ntopics: [\"[[Hub]]\"]\n---\n# Sync\n\n" +
 	"- talked about [[Missing]] and hub\n" + // line 7
 	"    * decided: ship it\n" + // line 8

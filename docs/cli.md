@@ -136,6 +136,78 @@ All paths are vault-relative with forward slashes. Arrays are always present (em
 
 Hashes are listed in block order, once per processed copy. A missing file means nothing has been processed yet.
 
+## entities
+
+```
+vault-curator entities [--vault <path>] [--json] [--min-count <n>] [--fallback-hub <title>]
+vault-curator entities [--vault <path>] --links-to <note> [--json]
+```
+
+Lists the entities the vault has and the **candidate** entities it only mentions. It reads the files and needs no git repo; `--vault` defaults to `.`. Without `--json`, prints a short listing. The `entities` skill drives it.
+
+Exit codes: 0 on success, 1 on failure (an unreadable vault, an unknown `--links-to` note), 2 on bad usage.
+
+### Candidate heuristic
+
+A candidate is a name or term the notes mention at least `--min-count` times (default 2) in plain text without a link, that no note title or alias names.
+
+1. Prose only. Fenced code, inline code, wikilinks, markdown links, bare URLs, headings and generated blocks are ignored. Frontmatter values count (an `attendees:` list of plain names).
+2. A name is a run of capitalized words joined by single spaces: `Teodor Quill`, `Sana`. Weekdays, months, articles, pronouns, conjunctions and `AI` end a run.
+3. A single word seen only at the start of a sentence or bullet (`Add retries`) is not evidence. It needs one capitalized mention that does not open a sentence or bullet.
+4. A single word that belongs to exactly one multi-word name folds into it: `Teodor` joins `Teodor Quill` and is listed under `variants`.
+5. A name that resolves to a note title or alias (`Mira`, the alias of `Mira Vantongeren`) is not a candidate.
+6. Mentions are then recounted case-insensitively on whole words, so `oskar` counts for `Oskar Fenwick`.
+
+The heuristic finds names, not their kind. Whether a candidate is a person, project, component or system is the agent's call, and the user's at review. It misses names that only ever open a sentence, and lists capitalized terms that are not entities; review catches both.
+
+### JSON output
+
+```json
+{
+  "entities": [
+    { "path": "people/Mira Vantongeren.md", "title": "Mira Vantongeren", "type": "person", "aliases": ["Mira"], "hub": false, "backlinks": 9 }
+  ],
+  "candidates": [
+    {
+      "name": "Teodor Quill",
+      "variants": ["Teodor"],
+      "count": 8,
+      "occurrences": [
+        { "path": "daily/2026-09-14.md", "line": 2 }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `entities[]` | The same entities as in `scan`, sorted by path, with `backlinks`: the number of links into the note. |
+| `candidates[]` | Sorted by `count`, most first, then name. |
+| `candidates[].name` | The longest form seen, as first written. |
+| `candidates[].variants` | Shorter forms folded into `name`. Optional. |
+| `candidates[].count` | The number of mentions; equals the length of `occurrences`. |
+| `candidates[].occurrences[]` | Each mention: vault-relative `path` and 1-based `line`, in path then line order. |
+
+### Links to a note
+
+`--links-to <note>` (a title, alias or path) answers a different question, for merging entities: where do links point at this note? `--min-count` is ignored.
+
+```json
+{
+  "target": { "path": "people/Mira Vantongeren.md", "title": "Mira Vantongeren" },
+  "notes": [
+    {
+      "path": "components/Tidegate.md",
+      "links": [ { "line": 12, "raw": "[[Mira Vantongeren]]", "in_frontmatter": true } ],
+      "blocks": [ { "start_line": 17, "end_line": 20, "hash": "<hash>" } ]
+    }
+  ]
+}
+```
+
+`blocks` lists every top-level block of the linking note, which a `rewrite` of that note must map as sources (see [plan.md](plan.md)). `scan` lists blocks only for notes changed since the watermark, so a linking note that has not changed is found here.
+
 ## review
 
 ```
