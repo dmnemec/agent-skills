@@ -251,21 +251,150 @@ func TestApplyRefusesNoChanges(t *testing.T) {
 	}
 }
 
-func TestApplyRefusesDirtyVault(t *testing.T) {
-	for name, dirty := range map[string]func(*testing.T, *gitx.Repo){
-		"modified":  func(t *testing.T, r *gitx.Repo) { gittest.AppendFile(t, r, "Unsorted.md", "- more\n") },
-		"untracked": func(t *testing.T, r *gitx.Repo) { gittest.WriteFile(t, r, "New note.md", "- new\n") },
-	} {
-		t.Run(name, func(t *testing.T) {
-			r := gittest.Vault(t)
-			dirty(t, r)
-			before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
-			_, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: root})
-			if !errors.Is(err, ErrDirty) {
-				t.Fatalf("err = %v, want ErrDirty", err)
-			}
-			requireNoTrace(t, r, root, before, base)
-		})
+// dirty makes modified, staged and untracked changes in the vault.
+func dirty(t *testing.T, r *gitx.Repo) {
+	t.Helper()
+	gittest.AppendFile(t, r, "Unsorted.md", "- more\n")
+	gittest.AppendFile(t, r, "daily/2026-09-18.md", "- staged entry\n")
+	run(t, r, "add", "daily/2026-09-18.md")
+	gittest.WriteFile(t, r, "New note.md", "- new\n")
+}
+
+func TestApplySnapshotsDirtyVault(t *testing.T) {
+	r := gittest.Vault(t)
+	dirty(t, r)
+	before, old := snapshot(t, r.Dir), head(t, r)
+
+	res, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// One snapshot commit on main holds the uncommitted changes, and the
+	// branch starts from it.
+	if res.Snapshot == "" || res.Snapshot != head(t, r) || res.Base != res.Snapshot {
+		t.Errorf("snapshot = %q, base = %q, HEAD = %q", res.Snapshot, res.Base, head(t, r))
+	}
+	if parent := run(t, r, "rev-parse", res.Snapshot+"^"); parent != old {
+		t.Errorf("snapshot parent = %s, want %s", parent, old)
+	}
+	if msg := run(t, r, "log", "-1", "--format=%s", res.Snapshot); msg != SnapshotMessage {
+		t.Errorf("snapshot message = %q", msg)
+	}
+	files := run(t, r, "show", "--name-only", "--format=", res.Snapshot)
+	if files != "New note.md\nUnsorted.md\ndaily/2026-09-18.md" {
+		t.Errorf("snapshot files = %q", files)
+	}
+	if clean, _ := r.IsClean(); !clean {
+		t.Error("main tree not clean after snapshot")
+	}
+	if !reflect.DeepEqual(snapshot(t, r.Dir), before) {
+		t.Error("main tree files changed")
+	}
+
+	// The worktree has the uncommitted edits plus the plan.
+	got := snapshot(t, res.VaultDir)
+	if !strings.HasSuffix(got["Unsorted.md"], "- more\n") || got["New note.md"] != "- new\n" ||
+		!strings.Contains(got["daily/2026-09-18.md"], "- staged entry\n") {
+		t.Error("worktree misses the snapshotted edits")
+	}
+	if _, ok := got["meetings/2026-09-14 Beacon sync.md"]; !ok {
+		t.Error("worktree misses the plan's new note")
+	}
+}
+
+func TestApplyCleanVaultMakesNoSnapshot(t *testing.T) {
+	r := gittest.Vault(t)
+	base := head(t, r)
+	res, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Snapshot != "" || head(t, r) != base {
+		t.Errorf("snapshot = %q, HEAD moved = %v", res.Snapshot, head(t, r) != base)
+	}
+}
+
+// subfolderVault commits the synthetic vault in notes/ of a larger repo
+// and returns the repo and the vault.
+func subfolderVault(t *testing.T) (repo, v *gitx.Repo) {
+	t.Helper()
+	r := gittest.Init(t)
+	gittest.CopyDir(t, gittest.FixtureVault, filepath.Join(r.Dir, "notes"))
+	gittest.WriteFile(t, r, "README.md", "not a note\n")
+	gittest.Commit(t, r, "initial")
+	return r, &gitx.Repo{Dir: filepath.Join(r.Dir, "notes"), Env: r.Env}
+}
+
+func TestApplySnapshotLeavesOutsideChanges(t *testing.T) {
+	r, v := subfolderVault(t)
+	gittest.AppendFile(t, v, "Unsorted.md", "- more\n")
+	gittest.AppendFile(t, r, "README.md", "unstaged outside\n")
+	gittest.WriteFile(t, r, "outside.txt", "untracked outside\n")
+
+	res, err := Apply(v.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files := run(t, r, "show", "--name-only", "--format=", res.Snapshot); files != "notes/Unsorted.md" {
+		t.Errorf("snapshot files = %q", files)
+	}
+	if status := run(t, r, "status", "--porcelain"); status != "M README.md\n?? outside.txt" {
+		t.Errorf("status = %q", status)
+	}
+}
+
+func TestApplyRefusesStagedOutsideVault(t *testing.T) {
+	r, v := subfolderVault(t)
+	gittest.AppendFile(t, v, "Unsorted.md", "- more\n")
+	gittest.AppendFile(t, r, "README.md", "staged outside\n")
+	run(t, r, "add", "README.md")
+	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
+
+	_, err := Apply(v.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: root})
+	if !errors.Is(err, gitx.ErrStagedOutside) || !strings.Contains(err.Error(), "README.md") {
+		t.Fatalf("err = %v, want ErrStagedOutside naming README.md", err)
+	}
+	requireNoTrace(t, r, root, before, base)
+	if status := run(t, r, "status", "--porcelain"); status != "M  README.md\n M notes/Unsorted.md" {
+		t.Errorf("status = %q", status)
+	}
+}
+
+func TestApplyInvalidPlanLeavesDirtyVault(t *testing.T) {
+	r := gittest.Vault(t)
+	dirty(t, r)
+	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
+	status := run(t, r, "status", "--porcelain")
+	p := loadPlan(t)
+	p.Operations[0].Status = plan.Pending
+
+	var inv *InvalidPlanError
+	if _, err := Apply(r.Dir, p, Options{Branch: testBranch, WorktreeRoot: root}); !errors.As(err, &inv) {
+		t.Fatalf("err = %v, want InvalidPlanError", err)
+	}
+	requireNoTrace(t, r, root, before, base)
+	if got := run(t, r, "status", "--porcelain"); got != status {
+		t.Errorf("status = %q, want %q", got, status)
+	}
+}
+
+func TestApplyFailingSnapshotHook(t *testing.T) {
+	r := gittest.Vault(t)
+	dirty(t, r)
+	hook := filepath.Join(r.Dir, ".git", "hooks", "pre-commit")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho hook says no >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	before, base, root := snapshot(t, r.Dir), head(t, r), t.TempDir()
+	status := run(t, r, "status", "--porcelain")
+	_, err := Apply(r.Dir, loadPlan(t), Options{Branch: testBranch, WorktreeRoot: root})
+	if err == nil || !strings.Contains(err.Error(), "snapshot commit") || !strings.Contains(err.Error(), "hook says no") {
+		t.Fatalf("err = %v", err)
+	}
+	requireNoTrace(t, r, root, before, base)
+	if got := run(t, r, "status", "--porcelain"); got != status {
+		t.Errorf("status = %q, want %q (index not restored)", got, status)
 	}
 }
 

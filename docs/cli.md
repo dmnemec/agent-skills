@@ -176,17 +176,18 @@ vault-curator apply --vault <path> [--branch <name>] [--worktree-root <folder>] 
 
 Carries out a reviewed plan without touching the vault's working tree, so Obsidian and the nightly cron push see nothing until the user merges.
 
-1. **Refuses on uncommitted changes.** The plan was built from the working tree (scan includes uncommitted edits), but the worktree starts from `HEAD`. If anything under the vault folder is modified, staged or untracked, apply stops and lists it: commit first, then apply. Changes elsewhere in a larger repo do not count.
-2. **Validates** the plan exactly as `validate` does (without `--draft`). Any error stops apply before anything is created, and the errors are printed as `validate` prints them. A plan whose approved operations change nothing is refused too.
-3. **Creates a worktree** on a new branch starting at `HEAD`. The branch is `--branch`, default `curate/<UTC time>` such as `curate/20261018-142501`; an existing branch is an error. The worktree is `<root>/vault-curator-<random>/<branch with / as ->`, where `<root>` is `--worktree-root` (default the OS temp folder). It must be outside the repo, so it is never inside the vault.
+1. **Validates** the plan against the working tree, exactly as `validate` does (without `--draft`); that is what scan read, uncommitted edits included. Any error stops apply before anything is committed or created, and the errors are printed as `validate` prints them. A plan whose approved operations change nothing is refused too.
+2. **Snapshots uncommitted changes.** The worktree starts from `HEAD`, so if anything under the vault folder is modified, staged or untracked, apply first commits it on the current branch as `curate: snapshot before apply`, with the vault's git hooks running. Only the vault folder is staged (`git add --all -- <vault>`); changes elsewhere in a larger repo are left as they are. If changes outside the vault folder are already staged, apply refuses rather than sweep them into the snapshot. A failed snapshot commit puts the index back as it was. A clean vault gets no snapshot.
+3. **Creates a worktree** on a new branch starting at `HEAD` (the snapshot, if any). The branch is `--branch`, default `curate/<UTC time>` such as `curate/20261018-142501`; an existing branch is an error. The worktree is `<root>/vault-curator-<random>/<branch with / as ->`, where `<root>` is `--worktree-root` (default the OS temp folder). It must be outside the repo, so it is never inside the vault.
 4. **Writes** each changed note's post-plan content, after checking every note still matches what was validated. Each written note's blocks are recorded as processed in `.vault-curator/state.json` (see [State file](#state-file)).
 5. **Commits** everything in the worktree as `curate: apply plan to N notes`, with one line per note in the body. The vault's git hooks run; a failing hook fails apply.
 
-Any failure after step 3 removes the worktree, its folder and the branch, so a failed apply leaves no trace.
+Any failure after step 2 removes the worktree, its folder and the branch, so a failed apply leaves nothing but the snapshot commit, which holds only the user's own edits.
 
-Without `--json`, prints:
+Without `--json`, prints (the first line only when a snapshot was made):
 
 ```
+committed uncommitted vault changes first: snapshot 9b1c04e7a2d3
 applied 7 notes on branch curate/20261018-142501
 worktree: /tmp/vault-curator-1234/curate-20261018-142501
   update Coffee machine options.md (links-coffee)
@@ -203,6 +204,7 @@ With `--json`:
   "branch": "curate/20261018-142501",
   "worktree": "/tmp/vault-curator-1234/curate-20261018-142501",
   "vault": "/tmp/vault-curator-1234/curate-20261018-142501",
+  "snapshot": "<snapshot commit>",
   "base": "<commit the branch starts from>",
   "commit": "<curation commit>",
   "changes": [
@@ -216,12 +218,13 @@ With `--json`:
 | `branch` | The curation branch: one commit on top of `base`. |
 | `worktree` | Absolute path of the worktree. |
 | `vault` | The vault folder inside the worktree: `worktree` itself, or its subfolder when the vault is a folder in its repo. |
-| `base`, `commit` | The vault's `HEAD` when apply ran, and the curation commit. |
+| `snapshot` | The commit of the vault's uncommitted changes on the current branch. Optional: omitted when the vault was clean. |
+| `base`, `commit` | The vault's `HEAD` the branch starts from (after the snapshot), and the curation commit. |
 | `changes[]` | The notes written, as in `validate --json`. |
 
 When the plan is invalid, `--json` prints `{"ok": false, "errors": [...]}` (errors as in `validate --json`), and the errors also go to stderr.
 
-Exit codes: 0 on success, 1 on any failure (invalid plan, uncommitted changes, git errors), 2 on bad usage.
+Exit codes: 0 on success, 1 on any failure (invalid plan, changes staged outside the vault folder, a failing hook, git errors), 2 on bad usage.
 
 ## watermark
 

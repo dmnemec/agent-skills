@@ -129,15 +129,40 @@ func TestApplyRefusesInvalidPlan(t *testing.T) {
 	}
 }
 
-func TestApplyRefusesDirtyVault(t *testing.T) {
+func TestApplySnapshotsDirtyVault(t *testing.T) {
 	r := gittest.Vault(t)
 	gittest.AppendFile(t, r, "Unsorted.md", "- uncommitted\n")
 	var out, errOut bytes.Buffer
-	if code := run([]string{"apply", "--vault", r.Dir, "--worktree-root", t.TempDir(), testPlan}, &out, &errOut); code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	if code := run([]string{"apply", "--vault", r.Dir, "--json", "--worktree-root", t.TempDir(), testPlan}, &out, &errOut); code != 0 {
+		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
 	}
-	if !strings.Contains(errOut.String(), "commit them before applying") || !strings.Contains(errOut.String(), "Unsorted.md") {
-		t.Errorf("stderr = %s", errOut.String())
+	var got struct {
+		Snapshot string `json:"snapshot"`
+		Base     string `json:"base"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	head, _ := r.Head()
+	if len(got.Snapshot) != 40 || got.Snapshot != head || got.Base != head {
+		t.Errorf("snapshot = %q, base = %q, HEAD = %q", got.Snapshot, got.Base, head)
+	}
+
+	// Text output names the snapshot; a clean vault's JSON omits it.
+	gittest.AppendFile(t, r, "Unsorted.md", "- again\n")
+	out.Reset()
+	if code := run([]string{"apply", "--vault", r.Dir, "--branch", "curate/two", "--worktree-root", t.TempDir(), testPlan}, &out, &errOut); code != 0 {
+		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
+	}
+	if !strings.HasPrefix(out.String(), "committed uncommitted vault changes first: snapshot ") {
+		t.Errorf("stdout = %s", out.String())
+	}
+	out.Reset()
+	if code := run([]string{"apply", "--vault", r.Dir, "--json", "--branch", "curate/three", "--worktree-root", t.TempDir(), testPlan}, &out, &errOut); code != 0 {
+		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
+	}
+	if strings.Contains(out.String(), `"snapshot"`) {
+		t.Errorf("clean vault output has a snapshot: %s", out.String())
 	}
 }
 

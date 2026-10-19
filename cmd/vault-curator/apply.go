@@ -19,8 +19,9 @@ on a new branch, outside the vault, records the written blocks as processed
 and commits there. The vault's own working tree is not touched. Merge the
 branch, then run "vault-curator watermark".
 
-The vault must have no uncommitted changes. On any failure the worktree and
-branch are removed. Exit code 0 on success, 1 on failure, 2 on bad usage.
+If the vault folder has uncommitted changes, they (and nothing outside the
+vault folder) are first committed on the current branch as a snapshot. On any
+failure the worktree and branch are removed. Exit code 0 on success, 1 on failure, 2 on bad usage.
 
 flags:
 `
@@ -89,6 +90,9 @@ func runApply(args []string, stdout, stderr io.Writer) int {
 			out.Changes = append(out.Changes, change{Path: c.Path, Created: c.Created(), Ops: c.Ops})
 		}
 		return writeJSON(stdout, stderr, out)
+	}
+	if res.Snapshot != "" {
+		fmt.Fprintf(stdout, "committed uncommitted vault changes first: snapshot %s\n", shortHash(res.Snapshot))
 	}
 	noun := "notes"
 	if len(res.Changes) == 1 {

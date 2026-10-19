@@ -30,10 +30,9 @@ const BranchPrefix = "curate/"
 // worktreePrefix starts the name of the temp folder holding a worktree.
 const worktreePrefix = "vault-curator-"
 
-// ErrDirty is returned by Apply when the vault has uncommitted changes. The
-// plan was built from the working tree but the worktree starts from HEAD, so
-// the user must commit first.
-var ErrDirty = errors.New("the vault has uncommitted changes; commit them before applying")
+// SnapshotMessage is the message of the commit Apply makes of the vault's
+// uncommitted changes before branching.
+const SnapshotMessage = "curate: snapshot before apply"
 
 // ErrNoChanges is returned by Apply when the plan's approved operations
 // change no note.
@@ -75,7 +74,11 @@ type Result struct {
 	// VaultDir is the vault folder inside the worktree: Worktree itself,
 	// or the vault's subfolder when the vault is a folder in its repo.
 	VaultDir string `json:"vault"`
-	// Base is the commit the branch starts from: the vault's HEAD.
+	// Snapshot is the commit Apply made of the vault's uncommitted changes
+	// on the current branch, or "" when the vault was clean.
+	Snapshot string `json:"snapshot,omitempty"`
+	// Base is the commit the branch starts from: the vault's HEAD, after
+	// the snapshot if there is one.
 	Base string `json:"base"`
 	// Commit is the curation commit, the branch's tip.
 	Commit string `json:"commit"`
@@ -91,20 +94,20 @@ var afterWrite func(i int, path string) error
 // every change in a new worktree on a new branch, records the written notes'
 // blocks as processed in the state file, and commits there.
 //
-// It refuses, before creating anything, when the vault has uncommitted
-// changes (ErrDirty), the plan is invalid (*InvalidPlanError) or changes
-// nothing (ErrNoChanges). Any later failure removes the worktree and branch.
+// The plan is validated against the working tree, which is what scan read.
+// If the vault folder then has uncommitted changes (modified, staged or
+// untracked), Apply first commits them, and only them, on the current branch
+// (SnapshotMessage), so the worktree starts from exactly what was validated.
+// It refuses when changes outside the vault folder are already staged
+// (gitx.ErrStagedOutside), since the snapshot would sweep them in.
+//
+// It refuses, before creating anything, when the plan is invalid
+// (*InvalidPlanError) or changes nothing (ErrNoChanges). Any failure after
+// the snapshot removes the worktree and branch; the snapshot commit stays.
 func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error) {
 	repo, err := gitx.Open(vaultDir)
 	if err != nil {
 		return nil, err
-	}
-	dirty, err := repo.Run("status", "--porcelain", "--untracked-files=normal", "--", ".")
-	if err != nil {
-		return nil, err
-	}
-	if dirty != "" {
-		return nil, fmt.Errorf("%w:\n%s", ErrDirty, dirty)
 	}
 
 	v, err := vault.Load(repo.Dir, opts.Vault)
@@ -124,10 +127,6 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 		}
 	}
 
-	base, err := repo.Head()
-	if err != nil {
-		return nil, err
-	}
 	branch := opts.Branch
 	if branch == "" {
 		now := time.Now
@@ -153,6 +152,21 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 	if within(root, top) {
 		return nil, fmt.Errorf("worktree folder %s is inside the repo %s", root, top)
 	}
+
+	// Commit the vault's own uncommitted changes, so HEAD matches the
+	// working tree the plan was validated against.
+	snapshot, err := repo.CommitDir(SnapshotMessage)
+	switch {
+	case errors.Is(err, gitx.ErrNothingToCommit):
+		snapshot = ""
+	case err != nil:
+		return nil, fmt.Errorf("snapshot commit: %w", err)
+	}
+	base, err := repo.Head()
+	if err != nil {
+		return nil, err
+	}
+
 	parent, err := os.MkdirTemp(root, worktreePrefix)
 	if err != nil {
 		return nil, err
@@ -235,6 +249,7 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 		Branch:   branch,
 		Worktree: filepath.Clean(wtTop),
 		VaultDir: w.Dir,
+		Snapshot: snapshot,
 		Base:     base,
 		Commit:   commit,
 		Changes:  r.Changes,
