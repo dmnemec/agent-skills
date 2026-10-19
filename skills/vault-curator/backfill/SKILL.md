@@ -11,13 +11,13 @@ Batch size is `<N>`: 5 notes unless the user names another. Use fewer when the n
 
 Run the steps in order. Each ends on a criterion; continue only when it holds.
 
-## 1. Prepare
+## 1. Prepare (state: backfill.prepare)
 
 Do curate steps 1 and 2: locate the vault (`<vault>`) and check the binary.
 
 Done when `<vault>` is a folder inside a git work tree and `vault-curator version` exits 0.
 
-## 2. Find where backfill stands
+## 2. Find where backfill stands (state: backfill.start)
 
 Run `vault-curator scan --vault <vault> --all --limit <N> --json`. `--all` ignores the watermark and lists notes with unprocessed blocks, in path order. `remaining` counts the notes beyond this batch. Flags: [docs/cli.md](../../../docs/cli.md) under "scan".
 
@@ -27,13 +27,13 @@ Done when you can state the batch's notes, `remaining`, and `watermark.exists`.
 - `watermark.exists` false: no curation has run, so this is the first batch; go to step 3.
 - Otherwise: go to step 4. This is also how you resume after an interruption; the state file records what is done, so rerunning this step yields the next batch.
 
-## 3. Batch 1: seed entities
+## 3. Batch 1: seed entities (state: backfill.seed)
 
-Follow the [entities](../entities/SKILL.md) skill from its step 1 to its step 5 on the whole vault, then complete curate steps 6 to 9 (review in chat, decisions, apply, confirm, merge and watermark).
+Follow the [entities](../entities/SKILL.md) skill from its step 2 to its step 6 on the whole vault, then complete curate steps 6 to 9 (review in chat, decisions, apply, confirm, merge and watermark).
 
 Done when the seed branch is merged and `vault-curator watermark` exits 0. The seeded stubs now exist as link targets. Then return to step 2.
 
-## 4. Batch: curate the notes
+## 4. Batch: curate the notes (state: backfill.plan)
 
 Take the notes from the step 2 scan. Do curate steps 4 to 9 on exactly these notes, with the order and size fixed by the scan: write one plan, validate the draft, present the review in chat, record the decisions, apply, then confirm and merge. Read [PLANNING.md](../curate/PLANNING.md) before writing the plan. Tell the user how many notes remain after this batch.
 
@@ -41,7 +41,7 @@ Done when the merge is confirmed and run per curate step 9, `vault-curator water
 
 Every note in the batch ends processed: a note that needs no change gets a `keep` operation in the plan. A note whose operations the user rejected stays unprocessed and returns in the next batch; for a note the user wants left alone, propose `keep` for it in that batch.
 
-## 5. Repeat or finish
+## 5. Repeat or finish (state: backfill.next)
 
 Return to step 2 for the next batch.
 
