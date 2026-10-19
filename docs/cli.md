@@ -123,3 +123,47 @@ All paths are vault-relative with forward slashes. Arrays are always present (em
 ```
 
 Hashes are listed in block order, once per processed copy. A missing file means nothing has been processed yet.
+
+## review
+
+```
+vault-curator review --vault <path> [--out <review.md>] [--force] <plan.json>
+vault-curator review --sync <review.md> <plan.json>
+```
+
+Turns a plan (see [plan.md](plan.md)) into a markdown review document the user edits in Obsidian or on GitHub, then reads the decisions back into the plan.
+
+- **Render** (`--vault`) writes the review next to the plan (`plan.json` → `plan.review.md`), or to `--out` (`-` for stdout). The plan must pass `validate --draft`. An existing review file is not overwritten without `--force`, since it may hold edits.
+- **Sync** (`--sync`) sets each operation's `status` in the plan from the review and rewrites the plan file. It needs no vault.
+
+Exit codes: 0 on success, 1 on failure (a plan that fails `validate --draft`, a review that cannot be synced), 2 on bad usage.
+
+### The review document
+
+1. A summary: operations per category and tier, their statuses, and the notes the plan changes.
+2. One section per category, in the order splits, new entities, new notes, restructures, frontmatter, links. Each starts with the category's status line. Splits show every bullet of the split note, by line, under the note it goes to (the lossless mapping), then the note as it reads after the plan. Every split, create and rewrite has its own section with the resulting content; a rewrite shows the note before and after. Auto `set_frontmatter` and `add_links` operations take one line each.
+
+Note content appears only in fenced code blocks, so links in a review saved inside the vault add nothing to its graph. The review of the example plan (with every status pending) is pinned in [`internal/vaultcurator/review/testdata/2026-09-14.review.golden.md`](../internal/vaultcurator/review/testdata/2026-09-14.review.golden.md).
+
+### Status lines
+
+Sync reads only these lines, outside fenced code; every other edit is ignored:
+
+```markdown
+- category `split` status: approved
+- op `split-beacon` status: rejected
+```
+
+- Each category has one line. Each `approve-each` operation has one, and so does an `auto` operation whose status differs from its category's.
+- A status is `pending`, `approved` or `rejected` (any case).
+- An operation takes its own status when that is `approved` or `rejected`, and its category's status otherwise. So approve a category, then reject the exceptions.
+
+Sync fails and leaves the plan unchanged when the review names an operation or category the plan does not have, repeats or garbles a status line, lacks a category's or an `approve-each` operation's line, or holds a status it cannot read.
+
+The first line of the review is a hidden comment holding the plan's hash:
+
+```markdown
+<!-- vault-curator review plan-sha256=<64 hex characters> -->
+```
+
+It is the SHA-256 of the plan as `plan.Marshal` writes it with every status cleared, so syncing, which changes only statuses, keeps it valid. Any other change to the plan since the review was rendered, or a missing comment, fails the sync: render the review again.
