@@ -5,7 +5,7 @@ description: Backfill an existing markdown (Obsidian) vault with vault-curator. 
 
 # Backfill the vault
 
-A one-time pass that curates the existing vault in small batches, each one reviewed, applied and merged before the next. The first batch seeds entities, because every other note links to them. Each batch is an ordinary [curate](../curate/SKILL.md) run over a few notes, so the rules there hold: you propose, the user approves, the CLI applies, and you edit no vault file yourself.
+A one-time pass that curates the existing vault in small batches, each one reviewed, applied and merged before the next. The first batch seeds entities, because every other note links to them. Each batch is an ordinary [curate](../curate/SKILL.md) run over a few notes, so the rules there hold: you propose, the user approves, the CLI applies. You run every command and edit no vault file yourself.
 
 Batch size is `<N>`: 5 notes unless the user names another. Use fewer when the notes are long or the user wants lighter reviews.
 
@@ -29,15 +29,15 @@ Done when you can state the batch's notes, `remaining`, and `watermark.exists`.
 
 ## 3. Batch 1: seed entities
 
-Follow the [entities](../entities/SKILL.md) skill from its step 1 to its step 5 on the whole vault, then complete curate steps 7 to 9 (decisions, apply, merge and watermark).
+Follow the [entities](../entities/SKILL.md) skill from its step 1 to its step 5 on the whole vault, then complete curate steps 6 to 9 (review in chat, decisions, apply, confirm, merge and watermark).
 
 Done when the seed branch is merged and `vault-curator watermark` exits 0. The seeded stubs now exist as link targets. Then return to step 2.
 
 ## 4. Batch: curate the notes
 
-Take the notes from the step 2 scan. Do curate steps 4 to 9 on exactly these notes, with the order and size fixed by the scan: write one plan, validate the draft, render the review, wait for decisions, apply, hand off the merge. Read [PLANNING.md](../curate/PLANNING.md) before writing the plan. Tell the user how many notes remain after this batch.
+Take the notes from the step 2 scan. Do curate steps 4 to 9 on exactly these notes, with the order and size fixed by the scan: write one plan, validate the draft, present the review in chat, record the decisions, apply, then confirm and merge. Read [PLANNING.md](../curate/PLANNING.md) before writing the plan. Tell the user how many notes remain after this batch.
 
-Done when the user has merged the branch, `vault-curator watermark --vault <vault>` exits 0, and a fresh `scan --all --limit <N>` no longer lists this batch's notes.
+Done when the merge is confirmed and run per curate step 9, `vault-curator watermark --vault <vault>` exits 0, and a fresh `scan --all --limit <N>` no longer lists this batch's notes.
 
 Every note in the batch ends processed: a note that needs no change gets a `keep` operation in the plan. A note whose operations the user rejected stays unprocessed and returns in the next batch; for a note the user wants left alone, propose `keep` for it in that batch.
 

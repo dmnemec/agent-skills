@@ -5,7 +5,7 @@ description: Curate the user's markdown (Obsidian) vault with vault-curator. Use
 
 # Curate the vault
 
-You propose, the user approves, the CLI applies. Edit no vault file yourself; the only file you write is the plan, and the plan is the only thing that reaches the vault. Content and action-item state stay exactly as the user wrote them.
+The user invokes this skill and answers questions in chat; that is the whole of their part. You run every command and write every file, the review's status lines included. You propose, the user approves, the CLI applies. Edit no vault file yourself; the plan is the only thing that reaches the vault (the review file is a working copy you fill in). Content and action-item state stay exactly as the user wrote them.
 
 Run the steps in order. Each ends on a criterion; continue only when it holds.
 
@@ -14,6 +14,8 @@ Run the steps in order. Each ends on a criterion; continue only when it holds.
 Read the user's home-directory `AGENTS.md` for the vault path. Ask the user if it names none.
 
 Done when the path is an existing folder inside a git work tree (`git -C <vault> rev-parse --show-toplevel` succeeds). Call it `<vault>` below.
+
+Then run `git -C <vault> branch --list 'curate/*'`. A listed branch is an earlier run that was applied but never merged (`watermark` refuses for the same reason and names such branches). Ask the user whether to finish it (go to step 9 with that branch) or start a new run (continue).
 
 ## 2. Check the binary
 
@@ -45,17 +47,21 @@ Run `vault-curator validate --draft --vault <vault> <plan>`. Fix the plan, never
 
 Done when validate prints no errors.
 
-## 6. Render the review
+## 6. Present the review
 
-Run `vault-curator review --vault <vault> <plan>`. It writes `<plan minus .json>.review.md` next to the plan.
+Run `vault-curator review --vault <vault> <plan>`; it writes `<plan minus .json>.review.md` next to the plan. Read that file, then present it in chat. The user reads the conversation, not the file.
 
-Done when the review file exists. Tell the user its full path to open in any editor, and offer the alternative of showing it here in the conversation and recording their decisions into it. Name the assumptions behind your boundaries and primary topics, so the user can correct them.
+1. **Summary first**: notes touched, operations per category, and the assumptions behind your boundaries and primary topics, so the user can correct them.
+2. **Then each category** in review order. List its `auto` operations compactly (one line each: id and summary), and ask once: approve the category, or name the exceptions.
+3. **Then each `approve-each` operation on its own**: id, summary, and its before/after (or split boundary) from the review. Ask approve or reject. A category answer never decides these; sync refuses while one is pending.
 
-## 7. Wait for decisions
+Done when every category and every `approve-each` operation has an answer from the user. Offer opening the review file in an editor as an alternative; do not make it the default.
 
-Stop and wait. Decisions are the `status:` lines in the review (`approved` or `rejected`; format in docs/cli.md under "Status lines"). When the user answers in conversation, write those statuses into the review file yourself. A category line decides only its auto operations; every approve-each operation (splits, new entities, new notes, restructures) needs its own `approved` or `rejected`, or sync fails.
+## 7. Record the decisions
 
-Done when the user has said they are finished deciding. Then run `vault-curator review --sync <review> <plan>`; it exits 0 and the plan now holds the statuses. If sync refuses because the plan changed, render again with `--force` and return to step 6.
+Write the answers into the review's `status:` lines yourself (`approved` or `rejected`; format in docs/cli.md under "Status lines"). Then run `vault-curator review --sync <review> <plan>`.
+
+Done when sync exits 0 and the plan holds the statuses. If sync refuses because an operation is still pending, ask the user about it. If it refuses because the plan changed, render again with `--force` and return to step 6.
 
 ## 8. Apply
 
@@ -63,13 +69,11 @@ Run `vault-curator validate --vault <vault> <plan>`, then `vault-curator apply -
 
 Done when apply exits 0 and prints the branch name.
 
-## 9. Hand off the merge
+## 9. Confirm, merge, watermark
 
-Tell the user to merge the branch when satisfied, in the vault's repo, then record it:
+Show the user what changed: the branch name, each note changed (from apply's output) and, for rewrites and splits, the diff (`git -C <vault> diff <base>..<branch>`). Ask in chat whether to merge the branch into the vault.
 
-```
-git -C <vault> merge --no-ff <curate/branch>
-vault-curator watermark --vault <vault>
-```
+- **Confirmed** (an explicit yes to this question; approvals from step 6 do not count): run `git -C <vault> merge --no-ff <curate/branch>`, then `vault-curator watermark --vault <vault>`.
+- **Declined**: change nothing. Tell the user the branch `<curate/branch>` stays and the run can be finished later: invoke this skill again, and step 1 finds the branch and offers to merge it.
 
-Done when you have stated the branch name, the notes changed (from apply's output) and both commands. The run is complete; the watermark moves only after the user merges.
+Done when the merge and `watermark` both exit 0 and you have told the user the notes now merged, or when the user declined and you have said how to finish later.
