@@ -16,7 +16,7 @@ var (
 
 func TestValidateExamplePlan(t *testing.T) {
 	var out, errOut bytes.Buffer
-	if code := run([]string{"validate", "--vault", testVault, testPlan}, &out, &errOut); code != 0 {
+	if code := run([]string{"validate", "--vault", testVault, approvedPlan(t)}, &out, &errOut); code != 0 {
 		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())
 	}
 	if !strings.HasPrefix(out.String(), "plan OK: 7 notes to change\n") {
@@ -28,7 +28,8 @@ func TestValidateExamplePlan(t *testing.T) {
 	}
 }
 
-// writePlan writes a copy of the example plan with old replaced by new.
+// writePlan writes a copy of the example plan with every status approved by
+// hand (no review stamp) and old replaced by new.
 func writePlan(t *testing.T, old, new string) string {
 	t.Helper()
 	data, err := os.ReadFile(testPlan)
@@ -38,11 +39,18 @@ func writePlan(t *testing.T, old, new string) string {
 	if !bytes.Contains(data, []byte(old)) {
 		t.Fatalf("example plan has no %q", old)
 	}
+	data = bytes.ReplaceAll(data, []byte(`"status": "pending"`), []byte(`"status": "approved"`))
 	p := filepath.Join(t.TempDir(), "plan.json")
 	if err := os.WriteFile(p, bytes.Replace(data, []byte(old), []byte(new), 1), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return p
+}
+
+// approvedPlan is the example plan with every status approved by hand.
+func approvedPlan(t *testing.T) string {
+	t.Helper()
+	return writePlan(t, `"version": 1`, `"version": 1`)
 }
 
 func TestValidateReportsErrors(t *testing.T) {
@@ -61,9 +69,20 @@ func TestValidateReportsErrors(t *testing.T) {
 }
 
 func TestValidateJSON(t *testing.T) {
-	p := writePlan(t, `"status": "approved",
-      "summary": "Split the Beacon sync`, `"status": "pending",
-      "summary": "Split the Beacon sync`)
+	p := approvedPlan(t)
+	data, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const beacon = `"status": "approved",
+      "summary": "Split the Beacon sync`
+	if !bytes.Contains(data, []byte(beacon)) {
+		t.Fatal("example plan has no Beacon split")
+	}
+	data = bytes.Replace(data, []byte(beacon), []byte(strings.Replace(beacon, "approved", "pending", 1)), 1)
+	if err := os.WriteFile(p, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	var out, errOut bytes.Buffer
 	if code := run([]string{"validate", "--json", "--vault", testVault, p}, &out, &errOut); code != 1 {
 		t.Fatalf("exit code = %d, stderr = %s", code, errOut.String())

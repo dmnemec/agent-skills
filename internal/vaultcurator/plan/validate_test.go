@@ -25,6 +25,11 @@ func loadExample(t *testing.T) (*vault.Vault, *Plan) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The file holds the plan as the agent writes it, every status pending;
+	// these tests need the plan as it is after review.
+	for i := range p.Operations {
+		p.Operations[i].Status = Approved
+	}
 	return v, p
 }
 

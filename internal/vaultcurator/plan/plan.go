@@ -23,6 +23,20 @@ type Plan struct {
 	// Version is the schema version; it must be Version.
 	Version    int         `json:"version"`
 	Operations []Operation `json:"operations"`
+	// Review is the stamp "review --sync" writes. It proves the statuses
+	// came from a synced review; apply refuses a plan without a matching
+	// one. The agent never writes it. See package review.
+	Review *ReviewStamp `json:"review,omitempty"`
+}
+
+// ReviewStamp ties a plan's statuses to the review they were synced from.
+type ReviewStamp struct {
+	// PlanSHA256 is the review package's hash of the plan with its statuses
+	// and stamp cleared: what was reviewed.
+	PlanSHA256 string `json:"plan_sha256"`
+	// StatusesSHA256 hashes the synced (operation id, status) pairs: what
+	// the review decided.
+	StatusesSHA256 string `json:"statuses_sha256"`
 }
 
 // Kind is what an operation does.

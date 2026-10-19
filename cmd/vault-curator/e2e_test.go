@@ -72,11 +72,10 @@ func TestCurateEndToEnd(t *testing.T) {
 	}
 
 	// The agent's plan, with every status pending, saved where the skill puts it.
-	raw, err := os.ReadFile(testPlan)
+	pending, err := os.ReadFile(testPlan)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pending := regexp.MustCompile(`"status":\s*"[a-z]+"`).ReplaceAll(raw, []byte(`"status": "pending"`))
 	planRel := ".vault-curator/plans/20261019-090000.json"
 	reviewRel := ".vault-curator/plans/20261019-090000.review.md"
 	gittest.WriteFile(t, r, planRel, string(pending))
@@ -107,6 +106,7 @@ func TestCurateEndToEnd(t *testing.T) {
 	if err := os.WriteFile(reviewPath, approved, 0o644); err != nil {
 		t.Fatal(err)
 	}
+
 	cli(t, "review", "--sync", reviewPath, planPath)
 	cli(t, "validate", "--vault", r.Dir, planPath)
 

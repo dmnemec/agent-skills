@@ -7,7 +7,8 @@ Lifecycle:
 1. The agent writes the plan with every `status` set to `pending`.
 2. The agent runs `vault-curator validate --draft --vault <vault> <plan.json>` and fixes the plan until it passes. `--draft` treats pending operations as approved.
 3. `vault-curator review` shows the plan, and the user sets each status to `approved` or `rejected`.
-4. `vault-curator validate --vault <vault> <plan.json>` (and `apply`, which runs the same checks) passes only when no operation is still pending.
+4. `vault-curator review --sync` writes the decisions into the plan and stamps it with a `review` field (below).
+5. `vault-curator validate --vault <vault> <plan.json>` (and `apply`, which runs the same checks) passes only when no operation is still pending. `apply` also refuses a plan without a matching `review` stamp, so statuses written by hand never apply.
 
 ## Top level
 
@@ -22,6 +23,7 @@ Lifecycle:
 | --- | --- | --- |
 | `version` | number | Schema version. Must be `1`. |
 | `operations` | array | The proposed operations, in the order they apply. |
+| `review` | object | Written by `review --sync`, never by the agent. `{"plan_sha256": ..., "statuses_sha256": ...}`: the hash of the plan with statuses and stamp cleared (what was reviewed), and the hash of the synced `(id, status)` pairs (what was decided). `apply` recomputes both and refuses a missing or mismatched stamp, so editing the plan or a status after the sync invalidates it. `validate` ignores it. |
 
 Unknown fields anywhere in the plan are an error, so a misspelled field fails instead of being ignored.
 
@@ -141,7 +143,7 @@ This plan splits the messy daily note `testdata/vault/daily/2026-09-14.md` into 
       "op": "split",
       "category": "split",
       "tier": "approve-each",
-      "status": "approved",
+      "status": "pending",
       "summary": "Split the Harbor standup out of the 2026-09-14 daily note",
       "note": "daily/2026-09-14.md",
       "path": "meetings/2026-09-14 Harbor standup.md",
@@ -155,7 +157,7 @@ This plan splits the messy daily note `testdata/vault/daily/2026-09-14.md` into 
       "op": "split",
       "category": "split",
       "tier": "approve-each",
-      "status": "approved",
+      "status": "pending",
       "summary": "Split the Tidegate retry design meeting out of the daily note",
       "note": "daily/2026-09-14.md",
       "path": "meetings/2026-09-14 Tidegate retry design.md",
@@ -169,7 +171,7 @@ This plan splits the messy daily note `testdata/vault/daily/2026-09-14.md` into 
       "op": "split",
       "category": "split",
       "tier": "approve-each",
-      "status": "approved",
+      "status": "pending",
       "summary": "Split the Beacon sync, nested under the retry meeting, into its own note",
       "note": "daily/2026-09-14.md",
       "path": "meetings/2026-09-14 Beacon sync.md",
@@ -183,7 +185,7 @@ This plan splits the messy daily note `testdata/vault/daily/2026-09-14.md` into 
       "op": "split",
       "category": "split",
       "tier": "approve-each",
-      "status": "approved",
+      "status": "pending",
       "summary": "Split the 1:1 with Teodor out of the daily note",
       "note": "daily/2026-09-14.md",
       "path": "meetings/2026-09-14 1-1 Teodor.md",
@@ -198,7 +200,7 @@ This plan splits the messy daily note `testdata/vault/daily/2026-09-14.md` into 
       "op": "create",
       "category": "entity",
       "tier": "approve-each",
-      "status": "approved",
+      "status": "pending",
       "summary": "New person: Teodor Quill (in the standup and a 1:1)",
       "path": "people/Teodor Quill.md",
       "content": "---\ntype: person\n---\n# Teodor Quill\n"
@@ -208,7 +210,7 @@ This plan splits the messy daily note `testdata/vault/daily/2026-09-14.md` into 
       "op": "set_frontmatter",
       "category": "frontmatter",
       "tier": "auto",
-      "status": "approved",
+      "status": "pending",
       "summary": "Mark the 2026-09-14 daily note as curated",
       "note": "daily/2026-09-14.md",
       "frontmatter": {"type": "daily", "date": "2026-09-14"}
@@ -218,7 +220,7 @@ This plan splits the messy daily note `testdata/vault/daily/2026-09-14.md` into 
       "op": "add_links",
       "category": "links",
       "tier": "auto",
-      "status": "approved",
+      "status": "pending",
       "summary": "File the orphan coffee machine note under the fallback hub",
       "note": "Coffee machine options.md",
       "links": ["Unsorted"]
