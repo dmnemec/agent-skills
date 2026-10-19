@@ -3,8 +3,8 @@
 // that branch (design doc: "Architecture" step 4, and "Git, packaging and
 // testing" under Git workflow).
 //
-// The vault's main working tree is never written: Obsidian and the nightly
-// cron push see nothing until the user merges. A failed apply removes its
+// The vault's main working tree is never written: Obsidian and any outside
+// commit or scheduled sync see nothing until the user merges. A failed apply removes its
 // worktree and branch, so it leaves no trace.
 package apply
 

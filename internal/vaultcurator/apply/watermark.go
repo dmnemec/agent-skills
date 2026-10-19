@@ -44,7 +44,7 @@ type WatermarkResult struct {
 // curation commit, then removes the worktree and deletes the branch.
 //
 // The tag goes on the branch tip rather than the merge commit, so notes the
-// nightly cron committed on the main branch between apply and merge still
+// commit made outside curation on the main branch between apply and merge still
 // differ from the tag and stay scan candidates. The curated notes are the
 // same in the tip and the merge, so they are not.
 //

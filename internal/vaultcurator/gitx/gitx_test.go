@@ -37,7 +37,7 @@ func TestTagAndChangedSince(t *testing.T) {
 
 	// Committed, uncommitted and untracked changes all count; deletions don't.
 	gittest.AppendFile(t, r, "daily/2026-09-18.md", "- committed\n")
-	gittest.Commit(t, r, "nightly")
+	gittest.Commit(t, r, "sync")
 	gittest.AppendFile(t, r, "Unsorted.md", "- uncommitted\n")
 	gittest.WriteFile(t, r, "new folder/Brand new.md", "- untracked\n")
 	if err := os.Remove(filepath.Join(r.Dir, "Coffee machine options.md")); err != nil {
@@ -52,7 +52,7 @@ func TestTagAndChangedSince(t *testing.T) {
 		t.Errorf("ChangedSince = %q, want %q", got, want)
 	}
 
-	// The cron commit does not move the tag.
+	// A commit made outside curation does not move the tag.
 	if c2, _, _ := r.TagCommit(gitx.WatermarkTag); c2 != head {
 		t.Errorf("tag moved to %s", c2)
 	}
