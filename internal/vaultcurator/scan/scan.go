@@ -1,5 +1,6 @@
 // Package scan finds what curation should look at: notes changed since the
-// watermark tag and, inside each, the top-level blocks not yet processed.
+// watermark tag and, inside each, every top-level block, marking those not yet
+// processed as new.
 // It also reports the vault-wide context the agent plans against: the notes,
 // the entity index, the link graph, broken links and orphans. The Result is
 // the `vault-curator scan --json` output, documented in docs/cli.md.
@@ -67,9 +68,12 @@ type Candidate struct {
 	// NewBlocks are the top-level blocks not yet processed, in order. It is
 	// empty when the note changed outside its blocks, or has none.
 	NewBlocks []Block `json:"new_blocks"`
+	// Blocks are all of the note's top-level blocks, in order, each marked
+	// Processed or not. A rewrite must map every one of them.
+	Blocks []Block `json:"blocks"`
 }
 
-// Block is an unprocessed top-level block.
+// Block is a top-level block of a candidate note.
 type Block struct {
 	// StartLine and EndLine are 1-based and inclusive.
 	StartLine int    `json:"start_line"`
@@ -79,6 +83,9 @@ type Block struct {
 	Heading string `json:"heading,omitempty"`
 	// Text is the block's raw source.
 	Text string `json:"text"`
+	// Processed reports whether an earlier curation already processed the
+	// block. It is always false in NewBlocks.
+	Processed bool `json:"processed"`
 }
 
 // NoteInfo names a note.
@@ -176,14 +183,24 @@ func Run(root string, opts Options) (*Result, error) {
 }
 
 func candidate(n *note.Note, st *state.State) Candidate {
-	c := Candidate{Path: n.Path, Title: n.Title, Type: n.Type(), Tracked: st.Tracked(n.Path), NewBlocks: []Block{}}
+	c := Candidate{Path: n.Path, Title: n.Title, Type: n.Type(), Tracked: st.Tracked(n.Path), NewBlocks: []Block{}, Blocks: []Block{}}
+	// Blocks start at distinct lines, so a block's start line identifies it.
+	isNew := map[int]bool{}
 	for _, b := range st.NewBlocks(n) {
-		c.NewBlocks = append(c.NewBlocks, Block{
-			StartLine: b.StartLine, EndLine: b.EndLine, Hash: b.Hash,
-			Heading: b.Heading, Text: b.Text,
-		})
+		isNew[b.StartLine] = true
 	}
-	c.ProcessedBlocks = len(n.Blocks) - len(c.NewBlocks)
+	for _, b := range n.Blocks {
+		blk := Block{
+			StartLine: b.StartLine, EndLine: b.EndLine, Hash: b.Hash,
+			Heading: b.Heading, Text: b.Text, Processed: !isNew[b.StartLine],
+		}
+		c.Blocks = append(c.Blocks, blk)
+		if blk.Processed {
+			c.ProcessedBlocks++
+		} else {
+			c.NewBlocks = append(c.NewBlocks, blk)
+		}
+	}
 	return c
 }
 

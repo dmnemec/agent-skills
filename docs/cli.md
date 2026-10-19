@@ -20,7 +20,7 @@ Exit codes: 0 on success, 1 when the scan fails (for example, the vault is not i
 
 1. **Watermark.** The git tag `vault-curator/watermark` marks the last curation commit. Only curation moves it; the nightly cron commit never does.
 2. **Changed notes.** With the tag, a note is a candidate when it differs from the tagged commit: committed since, modified in the work tree, staged, or new and untracked (but not ignored). Deleted notes are not listed. Without the tag, every note is a candidate.
-3. **New blocks.** Inside a candidate, only the top-level bullet blocks not yet processed are listed. Processed block hashes live in `.vault-curator/state.json`, committed in the vault. A block whose content changes gets a new hash and is listed again; an identical copy of a processed block is listed once per extra copy.
+3. **New blocks.** Inside a candidate, every top-level bullet block is listed in `blocks`, each marked `processed` or not, and the ones not yet processed are also listed in `new_blocks`. A `rewrite` must map every block of its note (see [plan.md](plan.md)); a split usually takes only new ones. Processed block hashes live in `.vault-curator/state.json`, committed in the vault. A block whose content changes gets a new hash and is listed again; an identical copy of a processed block is listed once per extra copy.
 
 A candidate can have no new blocks, when the note changed only outside its bullet blocks (frontmatter, headings, prose) or has no blocks. It is still listed so the agent can decide.
 
@@ -46,7 +46,24 @@ Only markdown notes count. Attachments, `.vault-curator/` and `.git/` are never 
           "start_line": 6,
           "end_line": 7,
           "hash": "bbe13e85ccc8bf1e",
-          "text": "- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n"
+          "text": "- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n",
+          "processed": false
+        }
+      ],
+      "blocks": [
+        {
+          "start_line": 1,
+          "end_line": 4,
+          "hash": "993ba18102dc89cb",
+          "text": "- harbor demo prep w/ Sana\n    - demo flow: ingest -> ledgerline -> ops dashboard\n    - Sana presents, Mira drives\n    - AI Mira: seed demo tenant data\n",
+          "processed": true
+        },
+        {
+          "start_line": 6,
+          "end_line": 7,
+          "hash": "bbe13e85ccc8bf1e",
+          "text": "- coffee w/ Lio\n    - beacon webhook contract draft is up, see [[Beacon]]\n",
+          "processed": false
         }
       ]
     }
@@ -78,12 +95,14 @@ All paths are vault-relative with forward slashes. Arrays are always present (em
 | `candidates[].path`, `.title` | The note's path, and its file name without `.md` (what wikilinks resolve against). |
 | `candidates[].type` | Frontmatter `type`, lowercased. Optional. |
 | `candidates[].tracked` | True when curation has processed this note before (it has a state entry). |
-| `candidates[].processed_blocks` | How many of the note's blocks were already processed and so left out. |
-| `candidates[].new_blocks[]` | Unprocessed top-level blocks, in file order. |
-| `new_blocks[].start_line`, `.end_line` | 1-based, inclusive line range in the note. |
-| `new_blocks[].hash` | The block's content hash: 16 hex characters, stable across reindenting, marker and case changes. Plans refer to blocks by it. |
-| `new_blocks[].heading` | Text of the nearest heading above the block. Optional. |
-| `new_blocks[].text` | The block's raw source, including its final newline. |
+| `candidates[].processed_blocks` | How many of the note's blocks were already processed and so left out of `new_blocks`. |
+| `candidates[].new_blocks[]` | Unprocessed top-level blocks, in file order. Empty means nothing new. Same fields as `blocks[]`. |
+| `candidates[].blocks[]` | Every top-level block of the note, processed or not, in file order. A `rewrite` maps them all. |
+| `blocks[].start_line`, `.end_line` | 1-based, inclusive line range in the note. |
+| `blocks[].hash` | The block's content hash: 16 hex characters, stable across reindenting, marker and case changes. Plans refer to blocks by it. |
+| `blocks[].heading` | Text of the nearest heading above the block. Optional. |
+| `blocks[].text` | The block's raw source, including its final newline. |
+| `blocks[].processed` | True when an earlier curation already processed the block. Always false in `new_blocks[]`. |
 | `notes[]` | Every note: `path`, `title`, optional `type` and `aliases`. Sorted by path. |
 | `entities[]` | Project, component and person notes and the fallback hub: `path`, `title`, `type`, optional `aliases`, and `hub` (projects, components and the fallback hub). Sorted by path. |
 | `links[]` | The link graph: every link from one note to another, in note then line order. `to` is the resolved note's path, `target` the target as written (no heading or label), `raw` the link exactly as written. `in_frontmatter` (optional) marks links in frontmatter, such as typed edges. Links to attachments and external URLs are left out. |

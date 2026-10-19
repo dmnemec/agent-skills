@@ -78,7 +78,7 @@ func TestScanText(t *testing.T) {
 	if code := run([]string{"scan", "--vault", r.Dir}, &out, &errOut); code != 0 {
 		t.Fatalf("exit code = %d, stderr = %q", code, errOut.String())
 	}
-	for _, want := range []string{"1 candidate notes, 1 new blocks", "daily/2026-09-18.md: 1 new, 1 processed", "lines 6-7"} {
+	for _, want := range []string{"1 candidate notes, 1 new blocks", "daily/2026-09-18.md: 1 new, 1 processed", "lines 1-4", "processed\n", "lines 6-7", "new\n"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("output missing %q:\n%s", want, out.String())
 		}
