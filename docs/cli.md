@@ -17,13 +17,15 @@ Prints the version on one line. The version is the first of these that is set:
 ## scan
 
 ```
-vault-curator scan [--vault <path>] [--json] [--fallback-hub <title>]
+vault-curator scan [--vault <path>] [--json] [--fallback-hub <title>] [--all] [--limit <n>]
 ```
 
 Lists what curation should look at, plus the vault-wide context the agent plans against.
 
 - `--vault` is the vault root (default `.`). It must be inside a git work tree; it may be the repo root or a folder in it.
 - `--fallback-hub` is the title of the fallback hub note (default `Unsorted`).
+- `--all` ignores the watermark: the candidates are every note with at least one unprocessed block per the state file (a note absent from state has all its blocks unprocessed). Notes whose blocks are all processed are not candidates. The backfill skill uses it: after a first batch is merged and watermarked, the remaining old notes are unchanged since the tag, so a plain scan never lists them.
+- `--limit N` keeps at most N candidates, taken in path order so successive batches progress deterministically; `remaining` in the JSON counts the candidates left out. It works with or without `--all`. Zero (the default) means no cap; a negative value is bad usage.
 - Without `--json`, prints a short summary.
 
 Exit codes: 0 on success, 1 when the scan fails (for example, the vault is not in a git repo), 2 on bad usage.
@@ -47,6 +49,7 @@ Only markdown notes count. Attachments, `.vault-curator/` and `.git/` are never 
     "exists": true,
     "commit": "<full commit hash>"
   },
+  "remaining": 0,
   "candidates": [
     {
       "path": "daily/2026-09-18.md",
@@ -104,6 +107,7 @@ All paths are vault-relative with forward slashes. Arrays are always present (em
 | `watermark.exists` | False before the first curation: every note is then a candidate. |
 | `watermark.commit` | The tagged commit. Optional: omitted when the tag does not exist. |
 | `candidates[]` | Notes to curate, sorted by path. |
+| `remaining` | Candidates left out by `--limit`; 0 when nothing was cut. With `--all --limit`, 0 means this batch is the last. |
 | `candidates[].path`, `.title` | The note's path, and its file name without `.md` (what wikilinks resolve against). |
 | `candidates[].type` | Frontmatter `type`, lowercased. Optional. |
 | `candidates[].tracked` | True when curation has processed this note before (it has a state entry). |
