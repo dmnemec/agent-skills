@@ -18,6 +18,7 @@ commands:
   version   print the version
   scan      list notes and blocks changed since the watermark (--vault, --json)
   validate  check a curation plan against the vault (--vault, --draft, --json)
+  review    render a plan for review, or sync edited statuses back (--vault, --sync)
 `
 
 func main() {
@@ -37,6 +38,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runScan(args[1:], stdout, stderr)
 	case "validate":
 		return runValidate(args[1:], stdout, stderr)
+	case "review":
+		return runReview(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n\n%s", args[0], usage)
 		return 2
