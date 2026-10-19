@@ -801,6 +801,7 @@ func (c *checker) checkLossless() {
 					}
 				}
 			}
+			c.checkProse(op, n, dn)
 			for _, seg := range n.Segments {
 				if seg.Kind == note.KindMermaid && !strings.Contains(op.Content, n.SegmentText(seg)) {
 					c.fail(op, n.Path, seg.StartLine, "mermaid diagram at lines %d-%d is not preserved byte for byte", seg.StartLine, seg.EndLine)
@@ -810,6 +811,65 @@ func (c *checker) checkLossless() {
 		if op.Op == Split {
 			c.checkSplitLink(op)
 		}
+	}
+}
+
+// proseLine is one non-bullet line of a note: a heading, a prose line or a
+// line of an ordinary code fence.
+type proseLine struct {
+	line    int
+	text    string // the raw line
+	key     string // matchKey of the line; a heading's key is its text only
+	heading bool
+}
+
+// proseLines returns the non-blank lines of n outside frontmatter, bullet
+// blocks, generated blocks and Mermaid diagrams, in order.
+func proseLines(n *note.Note) []proseLine {
+	headings := map[int]string{}
+	for _, h := range n.Headings {
+		headings[h.Line] = h.Text
+	}
+	var out []proseLine
+	for _, seg := range n.Segments {
+		if seg.Kind != note.KindHeading && seg.Kind != note.KindText && seg.Kind != note.KindCode {
+			continue
+		}
+		for i, ln := range strings.Split(strings.TrimRight(n.SegmentText(seg), "\r\n"), "\n") {
+			ln = strings.TrimRight(ln, "\r")
+			if strings.TrimSpace(ln) == "" {
+				continue
+			}
+			pl := proseLine{line: seg.StartLine + i, text: ln, key: matchKey(ln)}
+			if h, ok := headings[pl.line]; ok {
+				pl.heading, pl.key = true, matchKey(h)
+			}
+			out = append(out, pl)
+		}
+	}
+	return out
+}
+
+// checkProse checks that a rewrite keeps every original heading and prose
+// line, matched on normalized text like bullets. A prose line may become a
+// heading and the reverse; the heading level is free. Headings and prose the
+// content adds need no source. Bullets, frontmatter, generated blocks and
+// Mermaid diagrams are checked elsewhere.
+func (c *checker) checkProse(op *Operation, n, dn *note.Note) {
+	avail := map[string]int{}
+	for _, d := range proseLines(dn) {
+		avail[d.key]++
+	}
+	for _, o := range proseLines(n) {
+		if o.key == "" || avail[o.key] > 0 {
+			avail[o.key]--
+			continue
+		}
+		what := "line"
+		if o.heading {
+			what = "heading"
+		}
+		c.fail(op, n.Path, o.line, "%s not found in %s (dropped or reworded): %q", what, n.Path, strings.TrimSpace(o.text))
 	}
 }
 

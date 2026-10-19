@@ -446,6 +446,62 @@ func TestRewrite(t *testing.T) {
 	})
 }
 
+// rewriteAll builds a rewrite of path with one source per block.
+func rewriteAll(v *vault.Vault, path, content string) Operation {
+	op := Operation{
+		ID: "rw", Op: Rewrite, Category: CategoryRestructure, Tier: TierAuto, Status: Approved,
+		Note: path, Content: content,
+	}
+	for _, b := range v.Note(path).Blocks {
+		op.Sources = append(op.Sources, Source{Note: path, Block: b.Hash, Lines: [2]int{b.StartLine, b.EndLine}})
+	}
+	return op
+}
+
+func TestRewriteKeepsHeadingsAndProse(t *testing.T) {
+	v := small(map[string]string{
+		"Notes.md": "---\ntype: meeting\n---\n# Weekly\n\nplain intro line\nsecond prose line\n\n- a point\n\n" +
+			"## Later\n\n- another\n\n<!-- vault-curator:begin tl -->\n- generated\n<!-- vault-curator:end tl -->\n",
+	})
+	orig := string(v.Note("Notes.md").Src)
+	check := func(content string) *Result {
+		o := rewriteAll(v, "Notes.md", content)
+		return Validate(v, &Plan{Version: Version, Operations: []Operation{o}}, Options{})
+	}
+	requireOK(t, check(orig))
+	// Added headings are fine, a prose line may become a heading, links may be
+	// added, and generated blocks are not checked.
+	requireOK(t, check("---\ntype: meeting\n---\n# Weekly\n\n## Intro\n\n## Plain intro line\nsecond [[Notes|prose]] line\n\n- a point\n\n## Later\n\n- another\n"))
+
+	r := check(strings.Replace(orig, "plain intro line\n", "", 1))
+	e := requireErr(t, r.Errors, "rw", "line not found")
+	if e.Path != "Notes.md" || e.Line != 6 || !strings.Contains(e.Msg, "plain intro line") {
+		t.Errorf("error = %v", e)
+	}
+	r = check(strings.Replace(orig, "## Later\n\n", "", 1))
+	e = requireErr(t, r.Errors, "rw", "heading not found")
+	if e.Line != 11 || !strings.Contains(e.Msg, "Later") {
+		t.Errorf("error = %v", e)
+	}
+	requireErr(t, check(strings.Replace(orig, "second prose line", "second prose lines", 1)).Errors, "rw", "line not found")
+}
+
+func TestRewriteDailyTitleLine(t *testing.T) {
+	v, _ := loadExample(t)
+	const p = "daily/2026-09-15.md"
+	orig := string(v.Note(p).Src)
+	run := func(content string) *Result {
+		o := rewriteAll(v, p, content)
+		return Validate(v, &Plan{Version: Version, Operations: []Operation{o}}, Options{})
+	}
+	requireOK(t, run(orig))
+	r := run(strings.TrimPrefix(orig, "harbor beta planning\n"))
+	e := requireErr(t, r.Errors, "rw", "line not found")
+	if e.Path != p || e.Line != 1 {
+		t.Errorf("error at %s:%d", e.Path, e.Line)
+	}
+}
+
 func TestSetFrontmatter(t *testing.T) {
 	v := smallVault()
 	op := func(note string, fields map[string]any) *Plan {
