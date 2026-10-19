@@ -34,6 +34,7 @@ Exit codes: 0 on success, 1 when the scan fails (for example, the vault is not i
 
 1. **Watermark.** The git tag `vault-curator/watermark` marks the last curation commit. Only curation moves it; commits made outside curation (by you, an editor plugin or a scheduled sync) never do.
 2. **Changed notes.** With the tag, a note is a candidate when it differs from the tagged commit: committed since, modified in the work tree, staged, or new and untracked (but not ignored). Deleted notes are not listed. Without the tag, every note is a candidate.
+   **Leftovers** are candidates too. When `apply` finishes, every candidate that the plan neither writes nor keeps, and that still has unprocessed blocks (all its operations rejected, or none proposed), is added to the `leftovers` list in `.vault-curator/state.json`, committed with the curation. Moving the watermark commits their raw edits into the tagged history, so without this list a plain scan would never show them again. A plain `scan` lists them until a later curation writes the note (marking all its blocks processed) or keeps it. `scan --all` is unchanged.
 3. **New blocks.** Inside a candidate, every top-level bullet block is listed in `blocks`, each marked `processed` or not, and the ones not yet processed are also listed in `new_blocks`. A `rewrite` must map every block of its note (see [plan.md](plan.md)); a split usually takes only new ones. Processed block hashes live in `.vault-curator/state.json`, committed in the vault. A block whose content changes gets a new hash and is listed again; an identical copy of a processed block is listed once per extra copy.
 
 A candidate can have no new blocks, when the note changed only outside its bullet blocks (frontmatter, headings, prose) or has no blocks. It is still listed so the agent can decide.
@@ -134,11 +135,12 @@ All paths are vault-relative with forward slashes. Arrays are always present (em
   "version": 1,
   "files": {
     "daily/2026-09-18.md": ["c5a1f0e2d4b6a8c0"]
-  }
+  },
+  "leftovers": ["meetings/2026-09-10 Harbor kickoff.md"]
 }
 ```
 
-Hashes are listed in block order, once per processed copy. A missing file means nothing has been processed yet.
+Hashes are listed in block order, once per processed copy. A missing file means nothing has been processed yet. `leftovers` (sorted, omitted when empty) lists notes an earlier curation offered but left with unprocessed blocks; a plain scan lists them (see "How candidates are chosen"). A file without `leftovers` loads as before; the version stays 1.
 
 ## entities
 

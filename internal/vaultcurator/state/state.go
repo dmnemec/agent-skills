@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/note"
@@ -28,6 +29,11 @@ type State struct {
 	// blocks, in block order. A hash appears once per processed copy, so two
 	// identical blocks in one note are tracked separately.
 	Files map[string][]string `json:"files"`
+	// Leftovers are the notes a finished curation offered but left with
+	// unprocessed blocks (rejected operations, no keep), sorted. A plain scan
+	// lists them again until MarkNote, Forget or Rename clears them. Absent
+	// in state files written before this field existed.
+	Leftovers []string `json:"leftovers,omitempty"`
 }
 
 // New returns an empty State.
@@ -65,7 +71,7 @@ func (s *State) Save(vaultRoot string) error {
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		return err
 	}
-	out := State{Version: Version, Files: s.Files}
+	out := State{Version: Version, Files: s.Files, Leftovers: s.Leftovers}
 	if out.Files == nil {
 		out.Files = map[string][]string{}
 	}
@@ -122,6 +128,26 @@ func (s *State) MarkNote(n *note.Note) {
 	}
 	s.ensure()
 	s.Files[n.Path] = hashes
+	s.ClearLeftover(n.Path)
+}
+
+// IsLeftover reports whether path is recorded as a leftover.
+func (s *State) IsLeftover(path string) bool {
+	return slices.Contains(s.Leftovers, path)
+}
+
+// AddLeftover records path as a leftover, keeping the list sorted.
+func (s *State) AddLeftover(path string) {
+	if s.IsLeftover(path) {
+		return
+	}
+	s.Leftovers = append(s.Leftovers, path)
+	sort.Strings(s.Leftovers)
+}
+
+// ClearLeftover removes path from the leftovers.
+func (s *State) ClearLeftover(path string) {
+	s.Leftovers = slices.DeleteFunc(s.Leftovers, func(p string) bool { return p == path })
 }
 
 // MarkBlocks adds hashes to path's processed blocks, keeping what is
@@ -134,11 +160,16 @@ func (s *State) MarkBlocks(path string, hashes ...string) {
 // Forget drops path's entry, for a note that was deleted or merged away.
 func (s *State) Forget(path string) {
 	delete(s.Files, path)
+	s.ClearLeftover(path)
 }
 
 // Rename moves from's entry to to, for a note that was renamed or moved. It
 // replaces any entry already at to and does nothing if from is untracked.
 func (s *State) Rename(from, to string) {
+	if s.IsLeftover(from) && from != to {
+		s.ClearLeftover(from)
+		s.AddLeftover(to)
+	}
 	h, ok := s.Files[from]
 	if !ok || from == to {
 		return

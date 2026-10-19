@@ -56,6 +56,41 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	}
 }
 
+func TestLeftovers(t *testing.T) {
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, ".vault-curator"), 0o755)
+	// A state written before leftovers existed still loads.
+	os.WriteFile(filepath.Join(root, ".vault-curator", "state.json"), []byte(`{"version": 1, "files": {}}`), 0o644)
+	s, err := Load(root)
+	if err != nil || len(s.Leftovers) != 0 {
+		t.Fatalf("old state: %+v, %v", s, err)
+	}
+
+	s.AddLeftover("b.md")
+	s.AddLeftover("a.md")
+	s.AddLeftover("a.md")
+	if err := s.Save(root); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(root)
+	if err != nil || !reflect.DeepEqual(got.Leftovers, []string{"a.md", "b.md"}) {
+		t.Fatalf("leftovers = %v, %v", got.Leftovers, err)
+	}
+
+	got.MarkNote(note.Parse("a.md", []byte("- x\n")))
+	if got.IsLeftover("a.md") || !got.IsLeftover("b.md") {
+		t.Errorf("after MarkNote: %v", got.Leftovers)
+	}
+	got.Rename("b.md", "c.md")
+	if got.IsLeftover("b.md") || !got.IsLeftover("c.md") {
+		t.Errorf("after Rename: %v", got.Leftovers)
+	}
+	got.Forget("c.md")
+	if len(got.Leftovers) != 0 {
+		t.Errorf("after Forget: %v", got.Leftovers)
+	}
+}
+
 func TestLoadRejectsBadFile(t *testing.T) {
 	for name, content := range map[string]string{
 		"bad json":    "{",
