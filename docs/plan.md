@@ -52,7 +52,7 @@ The other fields depend on `op`. A field an op does not take is an error.
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `note` | string | Vault-relative path of the existing note the operation acts on, as in scan output (`daily/2026-09-14.md`). Matched case-insensitively. `set_frontmatter` and `add_links` may also name a note created earlier in the plan. |
-| `path` | string | Vault-relative path of the note a `split` or `create` makes. It must end in `.md`, use `/`, not exist yet, and have a title (file name) no other note or alias uses. Obsidian forbids `* " \ < > : \| ? # ^ [ ]` in file names, so they are rejected. |
+| `path` | string | Vault-relative path of the note a `split` or `create` makes. It must end in `.md`, use `/`, not exist yet, and have a title (file name) no other note or alias uses. Obsidian forbids `* " \ < > : \| ? # ^ [ ]` in file names, so they are rejected. A path git ignores is rejected too (skipped outside a git repo). |
 | `content` | string | The complete resulting note, frontmatter included. A missing final newline is added. |
 | `sources` | array | The source mapping: which original bullets this operation moves into `content` (below). |
 | `link` | string | The line a `split` leaves in `note` where the moved bullets were. It must hold only links, one of them to the new note. Default: `- [[<new note title>]]`. |
