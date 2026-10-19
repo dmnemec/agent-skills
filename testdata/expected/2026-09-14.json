@@ -1,0 +1,34 @@
+{
+  "note": "daily/2026-09-14.md",
+  "date": "2026-09-14",
+  "segments": [
+    {
+      "lines": [1, 4],
+      "kind": "meeting",
+      "title": "Harbor standup",
+      "primary": ["Harbor"],
+      "cue": "Top-level '-' bullet with tab-indented children; touches several components but is about the project as a whole."
+    },
+    {
+      "lines": [5, 11],
+      "kind": "meeting",
+      "title": "Tidegate retry design",
+      "primary": ["Tidegate"],
+      "cue": "No blank line before it: the boundary is the new top-level bullet and the switch from '-' to '*'. Children mix 4-space and tab indentation."
+    },
+    {
+      "lines": [12, 16],
+      "kind": "meeting",
+      "title": "Beacon sync",
+      "primary": ["Beacon", "Tidegate"],
+      "cue": "A level-2 bullet run under the retry meeting that is really a separate meeting (Lio joined late). Mixes '-' and '+'."
+    },
+    {
+      "lines": [18, 21],
+      "kind": "meeting",
+      "title": "1:1 Teodor",
+      "primary": ["Ledgerline"],
+      "cue": "Blank line separator; children use 2-space indentation."
+    }
+  ]
+}

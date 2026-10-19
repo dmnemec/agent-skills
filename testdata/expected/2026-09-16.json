@@ -1,0 +1,27 @@
+{
+  "note": "daily/2026-09-16.md",
+  "date": "2026-09-16",
+  "segments": [
+    {
+      "lines": [1, 5],
+      "kind": "meeting",
+      "title": "Ledgerline overload incident review",
+      "primary": ["Tidegate", "Ledgerline"],
+      "cue": "Top-level '+' bullet. Links with an alias ([[Mira Vantongeren|mira]])."
+    },
+    {
+      "lines": [6, 9],
+      "kind": "meeting",
+      "title": "Beacon webhook side chat",
+      "primary": ["Beacon"],
+      "cue": "A level-2 bullet whose level-3 children are really a separate meeting. Links to a heading with an alias ([[Beacon#Interfaces|beacon hub]])."
+    },
+    {
+      "lines": [11, 12],
+      "kind": "other",
+      "title": "Personal reminders",
+      "primary": ["Unsorted"],
+      "cue": "Not a meeting and fits no hub, so it goes to the fallback hub."
+    }
+  ]
+}
