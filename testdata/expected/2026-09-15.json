@@ -1,0 +1,20 @@
+{
+  "note": "daily/2026-09-15.md",
+  "date": "2026-09-15",
+  "segments": [
+    {
+      "lines": [1, 8],
+      "kind": "meeting",
+      "title": "Harbor beta planning",
+      "primary": ["Harbor"],
+      "cue": "Starts with a plain paragraph line used as a title, followed by unindented bullets. Contains a broken wikilink ([[Tidegate v2 RFC]])."
+    },
+    {
+      "lines": [11, 17],
+      "kind": "meeting",
+      "title": "Ledgerline schema review",
+      "primary": ["Ledgerline"],
+      "cue": "Two blank lines, then the whole meeting indented by 3 spaces at top level. Line 14 mixes a tab and spaces in one indent."
+    }
+  ]
+}
