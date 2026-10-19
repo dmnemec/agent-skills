@@ -6,7 +6,7 @@ Portable agent skills, plus the small CLIs that back them. The skills are built 
 
 ### vault-curator
 
-> **Status:** design. Nothing is implemented yet.
+> **Status:** v1 in progress. Implemented: `scan`, `validate`, `review`, `apply`, `watermark` and the `curate` skill. Not yet: hubs, entities, backfill, retrieval.
 
 A set of skills plus a Go CLI that turns a flat, unlinked markdown vault (such as an Obsidian vault) into a linked, typed knowledge base. Every change is reviewed before it is committed.
 
@@ -16,6 +16,10 @@ A set of skills plus a Go CLI that turns a flat, unlinked markdown vault (such a
 - Builds a context pack before a design session, and exposes the component graph as JSON for other agents.
 
 The agent proposes a plan, you approve it, and the CLI applies it on a separate git branch. The agent never edits your vault directly.
+
+### Using vault-curator
+
+Install the `vault-curator` binary and the `curate` skill, point your home-directory `AGENTS.md` at the vault, then ask your agent to curate it. Claude Code steps are in [adapters/claude/README.md](adapters/claude/README.md); the commands are documented in [docs/cli.md](docs/cli.md).
 
 The full design is in [docs/design.md](docs/design.md).
 
