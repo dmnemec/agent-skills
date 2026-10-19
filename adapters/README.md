@@ -17,7 +17,7 @@ Common to all four:
 
   Each product below says whether it reads that file or needs the section placed elsewhere.
 - Start a new session after installing; skills are discovered at startup.
-- Run it by asking the agent to "curate my vault". It writes a plan under `<vault>/.vault-curator/plans/`, you mark sections `approved` or `rejected` in the review file, and it applies the plan on a `curate/*` branch. Merge that branch in the vault repo, then run `vault-curator watermark --vault <vault>`.
+- Run it: invoke the skill ("curate my vault") and answer in chat. The agent runs every command and edits every file; the only questions are the review decisions and a final confirmation before it merges.
 
 On Windows, replace `~` with `%USERPROFILE%` and copy instead of symlinking unless developer mode is on.
 

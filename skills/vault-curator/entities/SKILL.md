@@ -46,7 +46,7 @@ Merge B into A when B's notes and links should land on A. A plan deletes nothing
 
 1. A `set_frontmatter` on A adding B's name to `aliases`.
 2. Run `vault-curator entities --vault <vault> --links-to B --json`. For each note in `notes`, a `rewrite` (category `restructure`, tier `approve-each`) that changes each `[[B]]` to `[[A|B]]` and every other byte the same, including links in frontmatter, with one source per entry of `blocks`.
-3. Leave B's own note in place and tell the user to move its content into A and delete it by hand after the merge; the alias then takes over B's name.
+3. Leave B's own note in place (plans delete nothing) and tell the user in the final report that it is now redundant; the alias takes over B's name.
 
 When B has no note, only plain-text mentions, step 1 alone is the merge.
 
@@ -54,6 +54,6 @@ Done when every note that `--links-to B` lists has a `rewrite` in the plan, and 
 
 ## 5. Validate, review, apply
 
-Follow curate steps 5 to 9 on this plan: [validate the draft](../curate/SKILL.md), render the review, wait for decisions, apply, hand off the merge. The review groups seeds under "new entities"; tell the user which verdicts you were unsure of.
+Follow curate steps 5 to 9 on this plan: [validate the draft](../curate/SKILL.md), present the review in chat, record the decisions, apply, confirm and merge. The review groups seeds under "new entities"; tell the user which verdicts you were unsure of.
 
-Done when you have named the branch, the entity notes created, the aliases added and the merges applied.
+Done when the user has confirmed or declined the merge, and you have named the branch, the entity notes created, the aliases added and the merges applied.
