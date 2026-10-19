@@ -34,7 +34,7 @@ The full design is in [docs/design.md](docs/design.md).
 ```text
 skills/     SKILL.md folders (curate, backfill, entities, context, ask)
 cmd/        Go source for the CLI
-adapters/   thin per-agent notes for Claude, Code Puppy and Codex
+adapters/   per-product install notes for Claude Code, Codex, Copilot and Code Puppy
 testdata/   a synthetic vault for tests and demos
 docs/       design documents
 ```
