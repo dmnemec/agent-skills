@@ -35,7 +35,9 @@ Done when `<vault>` exists, holds markdown, and `git -C <vault> rev-parse --show
 
 ## 3. Record the vault
 
-Target: `~/AGENTS.md` (`%USERPROFILE%\AGENTS.md` on Windows). The section is exactly one `## Notes vault` heading:
+Two files. `~/AGENTS.md` (`%USERPROFILE%\AGENTS.md` on Windows) is the single source of the vault path; the running product's global instructions file must load it.
+
+First, `~/AGENTS.md` holds exactly one section, shaped like this:
 
 ```markdown
 ## Notes vault
@@ -48,9 +50,17 @@ The Obsidian vault is at <vault> (a git repository).
 - Section present with the same path: change nothing.
 - Section present with another path: show the user the old and new path, wait for a yes, replace the path in place.
 
-Tell the user the file you wrote or left alone.
+Second, the running product's global instructions file. Take its path from the section for this product in [adapters/README.md](../../../adapters/README.md). If that section says the file imports other files with `@path` lines (Claude Code does):
 
-Done when `~/AGENTS.md` holds exactly one `## Notes vault` section and it names `<vault>`.
+- Ensure the file contains the line `@~/AGENTS.md`. Missing: say you will append it, wait for a yes, append. Do not also copy the section.
+
+Otherwise (copy-only product):
+
+- Ensure the file contains the `## Notes vault` section copied from `~/AGENTS.md`. Missing: say you will append it, wait for a yes, append. Present with different text: say you will update it in place, wait for a yes, update. Never add a second copy.
+
+If the file itself does not exist, say you will create it, wait for a yes, then write it. Tell the user each file you wrote or left alone.
+
+Done when the running product's global file contains `@~/AGENTS.md` exactly once (import case) or exactly one `## Notes vault` section matching `~/AGENTS.md` (copy case), and `~/AGENTS.md` holds exactly one `## Notes vault` section naming `<vault>`.
 
 ## 4. Skills
 
