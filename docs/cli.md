@@ -2,6 +2,18 @@
 
 The deterministic half of vault-curator. Every query command takes `--json`; its output shape is documented here and pinned by golden-file tests.
 
+## version
+
+```
+vault-curator version
+```
+
+Prints the version on one line. The version is the first of these that is set:
+
+1. The value given at build time with `-ldflags "-X main.version=..."`.
+2. The module version recorded in the binary, such as `v0.1.0` or a pseudo-version, as set by `go install github.com/dmnemec/agent-skills/cmd/vault-curator@<version>`.
+3. `dev`, for a local build with no version (`(devel)`).
+
 ## scan
 
 ```
