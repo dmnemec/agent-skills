@@ -52,6 +52,20 @@ func TestReviewRenderAndSync(t *testing.T) {
 		edited = strings.Replace(edited, "- category `"+cat+"` status: pending", "- category `"+cat+"` status: approved", 1)
 	}
 	edited = strings.Replace(edited, "- op `split-beacon` status: pending", "- op `split-beacon` status: rejected", 1)
+
+	// A category approval alone leaves the approve-each operations undecided:
+	// sync fails, names them and leaves the plan alone.
+	if err := os.WriteFile(reviewPath, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var syncOut, syncErr bytes.Buffer
+	if code := run([]string{"review", "--sync", reviewPath, planPath}, &syncOut, &syncErr); code != 1 ||
+		!strings.Contains(syncErr.String(), "still pending: split-standup, split-retry, split-teodor, entity-teodor") {
+		t.Fatalf("sync with pending approve-each ops: exit code %d, stderr %s", code, syncErr.String())
+	}
+	for _, id := range []string{"split-standup", "split-retry", "split-teodor", "entity-teodor"} {
+		edited = strings.Replace(edited, "- op `"+id+"` status: pending", "- op `"+id+"` status: approved", 1)
+	}
 	if err := os.WriteFile(reviewPath, []byte(edited), 0o644); err != nil {
 		t.Fatal(err)
 	}

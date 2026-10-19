@@ -53,7 +53,7 @@ Done when the review file exists. Tell the user its full path to open in any edi
 
 ## 7. Wait for decisions
 
-Stop and wait. Decisions are the `status:` lines in the review (`approved` or `rejected`; format in docs/cli.md under "Status lines"). When the user answers in conversation, write those statuses into the review file yourself.
+Stop and wait. Decisions are the `status:` lines in the review (`approved` or `rejected`; format in docs/cli.md under "Status lines"). When the user answers in conversation, write those statuses into the review file yourself. A category line decides only its auto operations; every approve-each operation (splits, new entities, new notes, restructures) needs its own `approved` or `rejected`, or sync fails.
 
 Done when the user has said they are finished deciding. Then run `vault-curator review --sync <review> <plan>`; it exits 0 and the plan now holds the statuses. If sync refuses because the plan changed, render again with `--force` and return to step 6.
 

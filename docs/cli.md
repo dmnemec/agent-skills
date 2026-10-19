@@ -244,9 +244,14 @@ Sync reads only these lines, outside fenced code; every other edit is ignored:
 
 - Each category has one line. Each `approve-each` operation has one, and so does an `auto` operation whose status differs from its category's.
 - A status is `pending`, `approved` or `rejected` (any case).
-- An operation takes its own status when that is `approved` or `rejected`, and its category's status otherwise. So approve a category, then reject the exceptions.
+- An `auto` operation takes its own status when that is `approved` or `rejected`, and its category's status otherwise. So approve a category, then reject the exceptions.
+- An `approve-each` operation (a split, a new entity, a new note, a restructure) never takes its category's status. Each needs its own `approved` or `rejected`; the category line alone decides nothing for it.
 
-Sync fails and leaves the plan unchanged when the review names an operation or category the plan does not have, repeats or garbles a status line, lacks a category's or an `approve-each` operation's line, or holds a status it cannot read.
+Sync fails and leaves the plan unchanged when the review names an operation or category the plan does not have, repeats or garbles a status line, lacks a category's or an `approve-each` operation's line, holds a status it cannot read, or leaves an `approve-each` operation `pending`. The last error reads:
+
+```
+approve-each operations need their own approved or rejected, a category status does not decide them; still pending: split-beacon, entity-teodor
+```
 
 The first line of the review is a hidden comment holding the plan's hash:
 
