@@ -20,6 +20,7 @@ import (
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/gitx"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/note"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/plan"
+	"github.com/dmnemec/agent-skills/internal/vaultcurator/scan"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/state"
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/vault"
 )
@@ -157,6 +158,15 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 		return nil, fmt.Errorf("worktree folder %s is inside the repo %s", root, top)
 	}
 
+	// Candidates the plan leaves with unprocessed blocks are recorded as
+	// leftovers below: the snapshot and the watermark would otherwise bury
+	// their raw edits in the tagged history, and no plain scan would list them
+	// again.
+	leftovers, err := leftoverPaths(repo.Dir, v, r, opts.Vault)
+	if err != nil {
+		return nil, err
+	}
+
 	// Commit the vault's own uncommitted changes, so HEAD matches the
 	// working tree the plan was validated against.
 	snapshot, err := repo.CommitDir(SnapshotMessage)
@@ -240,6 +250,9 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 	for _, k := range r.Kept {
 		st.MarkNote(v.Note(k))
 	}
+	for _, p := range leftovers {
+		st.AddLeftover(p)
+	}
 	if err := st.Save(w.Dir); err != nil {
 		return nil, err
 	}
@@ -262,6 +275,29 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 		Changes:  r.Changes,
 		Kept:     r.Kept,
 	}, nil
+}
+
+// leftoverPaths returns the plain-scan candidates that the plan neither
+// writes nor keeps and that still have unprocessed blocks.
+func leftoverPaths(dir string, v *vault.Vault, r *plan.Result, vo vault.Options) ([]string, error) {
+	s, err := scan.Run(dir, scan.Options{FallbackHub: vo.FallbackHub})
+	if err != nil {
+		return nil, fmt.Errorf("scan for leftovers: %w", err)
+	}
+	handled := map[string]bool{}
+	for _, c := range r.Changes {
+		handled[c.Path] = true
+	}
+	for _, k := range r.Kept {
+		handled[k] = true
+	}
+	var out []string
+	for _, c := range s.Candidates {
+		if !handled[c.Path] && len(c.NewBlocks) > 0 {
+			out = append(out, c.Path)
+		}
+	}
+	return out, nil
 }
 
 // commitMessage summarizes the changes, one line per note, and then the

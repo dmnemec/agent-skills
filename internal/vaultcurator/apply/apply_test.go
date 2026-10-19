@@ -493,13 +493,20 @@ func TestWatermarkAfterMerge(t *testing.T) {
 		t.Errorf("%d worktrees, want 1", n)
 	}
 
-	// A fresh scan finds nothing left to curate.
+	// A fresh scan lists only leftovers: unprocessed notes the plan did not
+	// touch, never a note it wrote.
 	s, err := scan.Run(r.Dir, scan.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.Candidates) != 0 {
-		t.Errorf("candidates after watermark: %+v", s.Candidates)
+	written := map[string]bool{}
+	for _, c := range res.Changes {
+		written[c.Path] = true
+	}
+	for _, c := range s.Candidates {
+		if written[c.Path] || len(c.NewBlocks) == 0 || !s.State.IsLeftover(c.Path) {
+			t.Errorf("unexpected candidate after watermark: %s", c.Path)
+		}
 	}
 }
 
@@ -520,12 +527,17 @@ func TestWatermarkKeepsMainSideChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var paths []string
+	// The sync edit is a candidate; everything else listed is a leftover.
+	found := false
 	for _, c := range s.Candidates {
-		paths = append(paths, c.Path)
+		if c.Path == "daily/2026-09-18.md" {
+			found = true
+		} else if !s.State.IsLeftover(c.Path) {
+			t.Errorf("%s is a candidate but neither the sync edit nor a leftover", c.Path)
+		}
 	}
-	if !reflect.DeepEqual(paths, []string{"daily/2026-09-18.md"}) {
-		t.Errorf("candidates = %v, want only the sync edit", paths)
+	if !found {
+		t.Error("the sync edit is not a candidate")
 	}
 }
 

@@ -33,7 +33,7 @@ type Options struct {
 type Result struct {
 	Watermark Watermark `json:"watermark"`
 	// Candidates are the notes changed since the watermark (every note when
-	// there is none), sorted by path, with their unprocessed blocks.
+	// there is none) plus the leftovers of earlier curations, sorted by path, with their unprocessed blocks.
 	Candidates []Candidate `json:"candidates"`
 	// Remaining counts the candidates left out by Limit; 0 when nothing was
 	// cut. Backfill is finished when it reaches 0.
@@ -176,7 +176,18 @@ func Run(root string, opts Options) (*Result, error) {
 			return nil, err
 		}
 		changed = nil
+		// Leftovers from earlier curations return until processed or kept,
+		// whatever the tag says: apply committed their raw edits into it.
+		paths = append(paths, st.Leftovers...)
+		seen := map[string]bool{}
 		for _, p := range paths {
+			if seen[p] {
+				continue
+			}
+			seen[p] = true
+			if st.IsLeftover(p) && v.Note(p) != nil && len(st.NewBlocks(v.Note(p))) == 0 {
+				continue // processed some other way since
+			}
 			// Only notes vault.Load read count: this drops attachments,
 			// the state file and anything under skipped folders.
 			if n := v.Note(p); n != nil && n.Path == p {

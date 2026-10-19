@@ -68,19 +68,24 @@ func TestApplyAndWatermarkJSON(t *testing.T) {
 		t.Errorf("watermark output = %s", out.String())
 	}
 
-	// A fresh scan has nothing left to curate.
+	// A fresh scan lists only the plan's leftovers, not the notes it wrote.
 	out.Reset()
 	if code := run([]string{"scan", "--vault", r.Dir, "--json"}, &out, &errOut); code != 0 {
 		t.Fatalf("scan exit code = %d, stderr = %s", code, errOut.String())
 	}
 	var s struct {
-		Candidates []any `json:"candidates"`
+		Candidates []struct {
+			Path      string `json:"path"`
+			NewBlocks []any  `json:"new_blocks"`
+		} `json:"candidates"`
 	}
 	if err := json.Unmarshal(out.Bytes(), &s); err != nil {
 		t.Fatal(err)
 	}
-	if len(s.Candidates) != 0 {
-		t.Errorf("candidates after watermark: %v", s.Candidates)
+	for _, c := range s.Candidates {
+		if len(c.NewBlocks) == 0 {
+			t.Errorf("candidate after watermark without new blocks: %s", c.Path)
+		}
 	}
 }
 
