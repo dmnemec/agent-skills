@@ -91,6 +91,10 @@ type Result struct {
 
 // afterWrite, when set, runs after each note is written. Tests use it to
 // inject a failure midway.
+// ignoreChecker returns the git-ignore check Validate uses. Tests replace it
+// to get a plan past validation.
+var ignoreChecker = func(r *gitx.Repo) func(string) (bool, error) { return r.IsIgnored }
+
 var afterWrite func(i int, path string) error
 
 // Apply validates p against the vault at vaultDir and, if it passes, writes
@@ -118,7 +122,7 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 	if err != nil {
 		return nil, fmt.Errorf("load vault: %w", err)
 	}
-	r := plan.Validate(v, p, plan.Options{})
+	r := plan.Validate(v, p, plan.Options{Ignored: ignoreChecker(repo)})
 	if !r.OK() {
 		return nil, &InvalidPlanError{Errors: r.Errors}
 	}
@@ -247,6 +251,19 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 	commit, err := w.CommitAll(commitMessage(r.Changes, r.Kept))
 	if err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
+	}
+	// Every written path must be in the commit, or it is lost once the
+	// worktree is deleted (for example, because git ignores it).
+	written := []string{state.Path}
+	for _, c := range r.Changes {
+		written = append(written, c.Path)
+	}
+	missing, err := w.MissingFromCommit(commit, written)
+	if err != nil {
+		return nil, fmt.Errorf("verify commit: %w", err)
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("written but not in the commit (ignored by git?): %s", strings.Join(missing, ", "))
 	}
 	wtTop, err := w.TopLevel()
 	if err != nil {

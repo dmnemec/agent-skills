@@ -16,6 +16,10 @@ type Options struct {
 	// Draft treats pending operations as approved, so an agent can check a
 	// plan before the user reviews it. Apply never sets it.
 	Draft bool
+	// Ignored reports whether git ignores a vault-relative slash path. A new
+	// path (split, create) that it ignores is rejected, since a note there
+	// would never be committed. Nil skips the check, for pure unit tests.
+	Ignored func(path string) (bool, error)
 }
 
 // Error is one validation failure, naming the operation and, where there is
@@ -336,6 +340,16 @@ func (c *checker) checkShape(op *Operation) bool {
 		if err := checkNewPath(op.Path); err != "" {
 			c.fail(op, op.Path, 0, "%s", err)
 			okay = false
+		} else if c.opts.Ignored != nil {
+			ign, ierr := c.opts.Ignored(op.Path)
+			switch {
+			case ierr != nil:
+				c.fail(op, op.Path, 0, "cannot check whether git ignores the path: %v", ierr)
+				okay = false
+			case ign:
+				c.fail(op, op.Path, 0, "path is ignored by git, so the note would not be committed")
+				okay = false
+			}
 		}
 	}
 	if op.Op == Split && op.Link != "" {

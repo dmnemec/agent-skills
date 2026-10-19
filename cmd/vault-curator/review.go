@@ -76,7 +76,7 @@ func runReview(args []string, stdout, stderr io.Writer) int {
 	if shown == "-" {
 		shown = "<review.md>"
 	}
-	doc, err := review.Render(v, p, review.Options{PlanPath: planPath, ReviewPath: shown})
+	doc, err := review.Render(v, p, review.Options{PlanPath: planPath, ReviewPath: shown, Ignored: gitIgnored(*vaultDir)})
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1

@@ -163,3 +163,19 @@ func TestWorktreeCommitTag(t *testing.T) {
 		t.Error("branch still exists")
 	}
 }
+
+func TestIsIgnoredAndMissingFromCommit(t *testing.T) {
+	r := gittest.Init(t)
+	gittest.WriteFile(t, r, ".gitignore", "private/\n")
+	gittest.WriteFile(t, r, "a.md", "a\n")
+	c := gittest.Commit(t, r, "init")
+	for path, want := range map[string]bool{"private/x.md": true, "a.md": false, "pub/x.md": false} {
+		if got, err := r.IsIgnored(path); err != nil || got != want {
+			t.Errorf("IsIgnored(%q) = %v, %v; want %v", path, got, err, want)
+		}
+	}
+	missing, err := r.MissingFromCommit(c, []string{"a.md", "b.md", "private/x.md"})
+	if err != nil || len(missing) != 2 || missing[0] != "b.md" || missing[1] != "private/x.md" {
+		t.Errorf("missing = %v, %v", missing, err)
+	}
+}

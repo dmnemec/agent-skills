@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -616,4 +617,22 @@ func TestErrorString(t *testing.T) {
 			t.Errorf("Error() = %q, want %q", got, want)
 		}
 	}
+}
+
+func TestNewPathIgnoredByGit(t *testing.T) {
+	v := smallVault()
+	p := &Plan{Version: Version, Operations: []Operation{{
+		ID: "new", Op: Create, Category: CategoryNote, Tier: TierApproveEach, Status: Approved,
+		Path: "private/Fresh.md", Content: "# Fresh",
+	}}}
+	requireOK(t, Validate(v, p, Options{}))
+	ignored := func(p string) (bool, error) { return strings.HasPrefix(p, "private/"), nil }
+	e := requireErr(t, Validate(v, p, Options{Ignored: ignored}).Errors, "new", "ignored by git")
+	if e.Path != "private/Fresh.md" {
+		t.Errorf("path = %q", e.Path)
+	}
+	p.Operations[0].Path = "public/Fresh.md"
+	requireOK(t, Validate(v, p, Options{Ignored: ignored}))
+	failing := func(string) (bool, error) { return false, errors.New("boom") }
+	requireErr(t, Validate(v, p, Options{Ignored: failing}).Errors, "new", "boom")
 }
