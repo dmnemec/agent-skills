@@ -21,13 +21,7 @@ Then run `git -C <vault> branch --list 'curate/*'`. A listed branch is an earlie
 
 Run `vault-curator version`.
 
-Done when it exits 0. When the command is missing, stop and tell the user to install it, then rerun this skill:
-
-```
-go install github.com/dmnemec/agent-skills/cmd/vault-curator@latest
-```
-
-(or `go build ./cmd/vault-curator` in a clone of github.com/dmnemec/agent-skills). Run `vault-curator --help` for the command list; each command's `--help` has its flags.
+Done when it exits 0. When the command is missing or fails, run the setup skill (`vault-curator-setup`, [setup](../setup/SKILL.md)) yourself, then resume at step 3. If the setup skill is not installed, follow the repo's [INSTALL.md](../../../INSTALL.md). Run `vault-curator --help` for the command list; each command's `--help` has its flags.
 
 ## 3. Scan
 
