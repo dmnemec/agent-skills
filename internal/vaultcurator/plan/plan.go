@@ -44,6 +44,9 @@ const (
 	SetFrontmatter Kind = "set_frontmatter"
 	// AddLinks appends one "- [[target]]" bullet per entry of Links to Note.
 	AddLinks Kind = "add_links"
+	// Keep records "reviewed, keep as is" for Note. It changes no content;
+	// apply marks every block of Note processed so scan stops listing it.
+	Keep Kind = "keep"
 )
 
 // Category groups operations for review, which approves by category.
@@ -57,6 +60,7 @@ const (
 	CategoryNote        Category = "note"
 	CategoryFrontmatter Category = "frontmatter"
 	CategoryLinks       Category = "links"
+	CategoryKeep        Category = "keep"
 )
 
 // Tier is how an operation is approved (design doc: Autonomy tiers).
@@ -93,6 +97,7 @@ var kinds = map[Kind]struct {
 	Create:         {map[Category]Tier{CategoryEntity: TierApproveEach, CategoryNote: TierApproveEach}},
 	SetFrontmatter: {map[Category]Tier{CategoryFrontmatter: TierAuto}},
 	AddLinks:       {map[Category]Tier{CategoryLinks: TierAuto}},
+	Keep:           {map[Category]Tier{CategoryKeep: TierAuto}},
 }
 
 // Operation is one proposed change. Which fields apply depends on Op; see
@@ -107,7 +112,7 @@ type Operation struct {
 	// Summary is a one-line description for review.
 	Summary string `json:"summary,omitempty"`
 	// Note is the existing note acted on, by vault-relative path: the note
-	// rewritten, split, or given frontmatter or links. SetFrontmatter and
+	// rewritten, split, kept, or given frontmatter or links. SetFrontmatter and
 	// AddLinks may also name a note created by another operation.
 	Note string `json:"note,omitempty"`
 	// Path is the new note's vault-relative path, for Split and Create.

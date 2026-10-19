@@ -68,6 +68,11 @@ type Result struct {
 	// Changes are the touched notes sorted by path. They are nil whenever
 	// Errors is not empty, so a failed plan cannot be applied by mistake.
 	Changes []Change
+	// Kept are the paths of the notes the plan keeps as is, sorted: the
+	// notes of its applied keep operations. They are in no Change, since
+	// their content does not change; apply marks their blocks processed. Nil
+	// whenever Errors is not empty.
+	Kept []string
 	// Errors are every check that failed, roughly in plan order.
 	Errors []*Error
 }
@@ -92,6 +97,7 @@ type state struct {
 	rewrite *Operation
 	splits  []*Operation
 	edits   []*Operation // set_frontmatter and add_links, in plan order
+	keeps   []*Operation // keep, in plan order; never in ops
 	ops     []*Operation // every applied op touching the note, in plan order
 	after   string
 }
@@ -131,6 +137,7 @@ func Validate(v *vault.Vault, p *Plan, opts Options) *Result {
 	c.registerCreated()
 	c.resolveSources()
 	c.resolveTargets()
+	c.checkKeeps()
 	c.compute()
 	c.checkLossless()
 	changes := c.changes()
@@ -138,7 +145,7 @@ func Validate(v *vault.Vault, p *Plan, opts Options) *Result {
 	if len(c.errs) > 0 {
 		return &Result{Errors: c.errs}
 	}
-	return &Result{Changes: changes}
+	return &Result{Changes: changes, Kept: c.kept()}
 }
 
 func (c *checker) fail(op *Operation, p string, line int, format string, args ...any) {
@@ -220,7 +227,7 @@ func (c *checker) markGone(op *Operation, how string) {
 func (c *checker) checkShape(op *Operation) bool {
 	k, ok := kinds[op.Op]
 	if !ok {
-		c.fail(op, "", 0, "unknown op %q (want rewrite, split, create, set_frontmatter or add_links)", op.Op)
+		c.fail(op, "", 0, "unknown op %q (want rewrite, split, create, set_frontmatter, add_links or keep)", op.Op)
 		return false
 	}
 	okay := true
@@ -302,6 +309,14 @@ func (c *checker) checkShape(op *Operation) bool {
 				okay = false
 			}
 		}
+	case Keep:
+		need(hasNote, "note")
+		forbid(hasPath, "path")
+		forbid(hasContent, "content")
+		forbid(hasSources, "sources")
+		forbid(op.Link != "", "link")
+		forbid(hasFM, "frontmatter")
+		forbid(hasLinks, "links")
 	case AddLinks:
 		need(hasNote, "note")
 		need(hasLinks, "links")
@@ -585,8 +600,46 @@ func (c *checker) resolveTargets() {
 			}
 			st.edits = append(st.edits, op)
 			st.ops = append(st.ops, op)
+		case Keep:
+			st := c.target(op, false)
+			if st == nil {
+				c.drop(op, "")
+				continue
+			}
+			st.keeps = append(st.keeps, op)
 		}
 	}
+}
+
+// checkKeeps rejects a keep on a note another applied operation touches, and
+// a second keep on one note.
+func (c *checker) checkKeeps() {
+	for _, st := range c.sortedStates() {
+		for i, op := range st.keeps {
+			switch {
+			case i > 0:
+				c.fail(op, st.path, 0, "note is also kept by %s; keep a note once", st.keeps[0].ID)
+				c.drop(op, "")
+			case len(st.ops) > 0:
+				c.fail(op, st.path, 0, "note is also changed by %s; keep is for a note the plan leaves as it is", st.ops[0].ID)
+				c.drop(op, "")
+			}
+		}
+	}
+}
+
+// kept returns the sorted paths of the notes with an applied keep.
+func (c *checker) kept() []string {
+	var out []string
+	for _, st := range c.sortedStates() {
+		for _, op := range st.keeps {
+			if !c.bad[op] {
+				out = append(out, st.path)
+				break
+			}
+		}
+	}
+	return out
 }
 
 // compute builds each touched note's post-plan content. Order within a note:

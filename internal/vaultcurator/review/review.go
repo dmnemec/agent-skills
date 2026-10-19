@@ -52,6 +52,7 @@ var categories = []struct {
 	{plan.CategoryRestructure, "Restructures"},
 	{plan.CategoryFrontmatter, "Frontmatter"},
 	{plan.CategoryLinks, "Links"},
+	{plan.CategoryKeep, "Kept notes"},
 }
 
 var statuses = []plan.Status{plan.Pending, plan.Approved, plan.Rejected}
@@ -184,6 +185,9 @@ func (w *writer) summary(p *plan.Plan, changes []plan.Change) {
 	}
 	w.f("| **Total** | %d | %d | %s |\n\n", auto, each, countStatuses(all))
 
+	if len(changes) == 0 {
+		return
+	}
 	w.f("Notes the plan changes, if every pending operation is approved:\n\n")
 	for _, c := range changes {
 		verb := "update"
@@ -218,7 +222,7 @@ func (w *writer) category(title string, cat plan.Category, ops []*plan.Operation
 	// rest get a section each.
 	var compact, full []*plan.Operation
 	for _, op := range ops {
-		if !ownLine(op, status) && (op.Op == plan.SetFrontmatter || op.Op == plan.AddLinks) {
+		if !ownLine(op, status) && (op.Op == plan.SetFrontmatter || op.Op == plan.AddLinks || op.Op == plan.Keep) {
 			compact = append(compact, op)
 		} else {
 			full = append(full, op)
@@ -248,7 +252,7 @@ func (w *writer) category(title string, cat plan.Category, ops []*plan.Operation
 	return nil
 }
 
-// describe is one line saying what a set_frontmatter or add_links op does.
+// describe is one line saying what a set_frontmatter, add_links or keep op does.
 func (w *writer) describe(op *plan.Operation) string {
 	var b strings.Builder
 	if op.Summary != "" {
@@ -283,6 +287,8 @@ func (w *writer) describe(op *plan.Operation) string {
 			b.WriteString(", removes " + strings.Join(unset, ", "))
 		}
 		b.WriteString(".")
+	case plan.Keep:
+		fmt.Fprintf(&b, "Keeps `%s` as is: no change, and scan stops listing its current blocks.", op.Note)
 	case plan.AddLinks:
 		links := make([]string, len(op.Links))
 		for i, l := range op.Links {

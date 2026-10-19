@@ -37,7 +37,7 @@ Done when you can name every candidate note, its blocks with their hashes, and t
 
 Write `<vault>/.vault-curator/plans/<UTC YYYYMMDD-HHMMSS>.json` (create the folder if missing). The plan format and its rules are in [docs/plan.md](../../../docs/plan.md). Every `status` is `pending`. Before choosing boundaries, hubs or frontmatter, read [PLANNING.md](PLANNING.md).
 
-Done when every new block of every candidate note is either mapped by an operation or deliberately left alone, and you can say which for each.
+Done when every new block of every candidate note is mapped by an operation, or its note is covered by a `keep` operation, and you can say which for each. A note you leave alone gets a `keep`; without one it returns in every later scan.
 
 ## 5. Validate the draft
 

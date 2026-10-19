@@ -34,8 +34,8 @@ const worktreePrefix = "vault-curator-"
 // uncommitted changes before branching.
 const SnapshotMessage = "curate: snapshot before apply"
 
-// ErrNoChanges is returned by Apply when the plan's approved operations
-// change no note.
+// ErrNoChanges is returned by Apply when the plan has no approved operation
+// that writes a note or keeps one.
 var ErrNoChanges = errors.New("the plan changes nothing: no operation is approved")
 
 // InvalidPlanError is returned by Apply when the plan fails validation.
@@ -84,6 +84,9 @@ type Result struct {
 	Commit string `json:"commit"`
 	// Changes are the notes written, sorted by path.
 	Changes []plan.Change `json:"-"`
+	// Kept are the notes kept as is, sorted by path: their blocks are
+	// marked processed in the state file, and their content is untouched.
+	Kept []string `json:"-"`
 }
 
 // afterWrite, when set, runs after each note is written. Tests use it to
@@ -92,7 +95,8 @@ var afterWrite func(i int, path string) error
 
 // Apply validates p against the vault at vaultDir and, if it passes, writes
 // every change in a new worktree on a new branch, records the written notes'
-// blocks as processed in the state file, and commits there.
+// and the kept notes' blocks as processed in the state file, and commits
+// there.
 //
 // The plan is validated against the working tree, which is what scan read.
 // If the vault folder then has uncommitted changes (modified, staged or
@@ -118,7 +122,7 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 	if !r.OK() {
 		return nil, &InvalidPlanError{Errors: r.Errors}
 	}
-	if len(r.Changes) == 0 {
+	if len(r.Changes) == 0 && len(r.Kept) == 0 {
 		return nil, ErrNoChanges
 	}
 	for _, c := range r.Changes {
@@ -233,11 +237,14 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 		}
 		st.MarkNote(note.Parse(c.Path, c.After))
 	}
+	for _, k := range r.Kept {
+		st.MarkNote(v.Note(k))
+	}
 	if err := st.Save(w.Dir); err != nil {
 		return nil, err
 	}
 
-	commit, err := w.CommitAll(commitMessage(r.Changes))
+	commit, err := w.CommitAll(commitMessage(r.Changes, r.Kept))
 	if err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
 	}
@@ -253,17 +260,19 @@ func Apply(vaultDir string, p *plan.Plan, opts Options) (res *Result, err error)
 		Base:     base,
 		Commit:   commit,
 		Changes:  r.Changes,
+		Kept:     r.Kept,
 	}, nil
 }
 
-// commitMessage summarizes the changes, one line per note.
-func commitMessage(changes []plan.Change) string {
+// commitMessage summarizes the changes, one line per note, and then the
+// notes kept as is.
+func commitMessage(changes []plan.Change, kept []string) string {
 	var b strings.Builder
-	noun := "notes"
-	if len(changes) == 1 {
-		noun = "note"
+	if len(changes) == 0 {
+		fmt.Fprintf(&b, "curate: keep %s as is\n\n", count(len(kept)))
+	} else {
+		fmt.Fprintf(&b, "curate: apply plan to %s\n\n", count(len(changes)))
 	}
-	fmt.Fprintf(&b, "curate: apply plan to %d %s\n\n", len(changes), noun)
 	for _, c := range changes {
 		verb := "update"
 		if c.Created() {
@@ -271,7 +280,17 @@ func commitMessage(changes []plan.Change) string {
 		}
 		fmt.Fprintf(&b, "- %s %s (%s)\n", verb, c.Path, strings.Join(c.Ops, ", "))
 	}
+	for _, k := range kept {
+		fmt.Fprintf(&b, "- keep %s\n", k)
+	}
 	return b.String()
+}
+
+func count(n int) string {
+	if n == 1 {
+		return "1 note"
+	}
+	return fmt.Sprintf("%d notes", n)
 }
 
 // within reports whether path is dir or inside it, after resolving

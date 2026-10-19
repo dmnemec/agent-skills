@@ -36,6 +36,10 @@ For each orphan in the scan, propose `add_links` to the best-fit hub and say why
 
 `type`, `date`, `project`/`topics`, `aliases` and the rest are defined in design.md "Note model"; the plan's `set_frontmatter` field rules are in docs/plan.md. Set only fields you can justify from the note.
 
+## Keep
+
+Propose `keep` (docs/plan.md) for a candidate note when it is already well-formed (clean structure, linked, right frontmatter) or nothing in it calls for a change. Give each a one-line `summary` saying which. A note takes either a `keep` or other operations, never both.
+
 ## Tiers
 
 Use the lowest tier docs/plan.md allows. Raise a tier to `approve-each` when the change is a judgment call the user should see by itself, such as an uncertain primary topic.
