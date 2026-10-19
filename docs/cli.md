@@ -262,7 +262,7 @@ It is the SHA-256 of the plan as `plan.Marshal` writes it with every status clea
 vault-curator apply --vault <path> [--branch <name>] [--worktree-root <folder>] [--json] <plan.json>
 ```
 
-Carries out a reviewed plan without touching the vault's working tree, so Obsidian and any commits made outside curation (by you, an editor plugin or a scheduled sync) see nothing until the user merges.
+Carries out a reviewed plan without touching the vault's working tree, so nothing changes in Obsidian or on your branch until you merge.
 
 1. **Validates** the plan against the working tree, exactly as `validate` does (without `--draft`); that is what scan read, uncommitted edits included. Any error stops apply before anything is committed or created, and the errors are printed as `validate` prints them. A plan with no approved operation that writes or keeps a note is refused too.
 2. **Snapshots uncommitted changes.** The worktree starts from `HEAD`, so if anything under the vault folder is modified, staged or untracked, apply first commits it on the current branch as `curate: snapshot before apply`, with the vault's git hooks running. Only the vault folder is staged (`git add --all -- <vault>`); changes elsewhere in a larger repo are left as they are. If changes outside the vault folder are already staged, apply refuses rather than sweep them into the snapshot. A failed snapshot commit puts the index back as it was. A clean vault gets no snapshot.
