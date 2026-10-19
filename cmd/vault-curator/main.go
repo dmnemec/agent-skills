@@ -16,6 +16,7 @@ const usage = `usage: vault-curator <command> [flags]
 
 commands:
   version   print the version
+  scan      list notes and blocks changed since the watermark (--vault, --json)
 `
 
 func main() {
@@ -31,6 +32,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "version":
 		fmt.Fprintln(stdout, version)
 		return 0
+	case "scan":
+		return runScan(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n\n%s", args[0], usage)
 		return 2
