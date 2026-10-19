@@ -42,6 +42,8 @@ func Init(t *testing.T) *gitx.Repo {
 		{"config", "core.autocrlf", "false"},
 		{"config", "commit.gpgsign", "false"},
 		{"config", "tag.gpgsign", "false"},
+		// Use only this repo's own hooks, never a global core.hooksPath.
+		{"config", "core.hooksPath", filepath.Join(dir, ".git", "hooks")},
 	} {
 		if _, err := r.Run(args...); err != nil {
 			t.Fatal(err)

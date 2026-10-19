@@ -187,8 +187,9 @@ func (r *Repo) IsClean() (bool, error) {
 }
 
 // CommitAll stages every change under the repo (git add --all) and commits
-// it with msg, returning the new commit. It returns ErrNothingToCommit when
-// there is nothing to commit.
+// it with msg, returning the new commit. The repo's git hooks run as usual;
+// a failing hook is returned as an error and nothing is committed. It returns
+// ErrNothingToCommit when there is nothing to commit.
 func (r *Repo) CommitAll(msg string) (string, error) {
 	top, err := r.TopLevel()
 	if err != nil {
@@ -200,7 +201,7 @@ func (r *Repo) CommitAll(msg string) (string, error) {
 	if _, err := r.Run("diff", "--cached", "--quiet"); err == nil {
 		return "", ErrNothingToCommit
 	}
-	if _, err := r.Run("commit", "--quiet", "--no-verify", "-m", msg); err != nil {
+	if _, err := r.Run("commit", "--quiet", "-m", msg); err != nil {
 		return "", err
 	}
 	return r.Head()

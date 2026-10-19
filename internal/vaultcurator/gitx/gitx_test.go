@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/dmnemec/agent-skills/internal/vaultcurator/gittest"
@@ -54,6 +55,26 @@ func TestTagAndChangedSince(t *testing.T) {
 	// The cron commit does not move the tag.
 	if c2, _, _ := r.TagCommit(gitx.WatermarkTag); c2 != head {
 		t.Errorf("tag moved to %s", c2)
+	}
+}
+
+func TestCommitAllRunsHooks(t *testing.T) {
+	r := gittest.Vault(t)
+	head, _ := r.Head()
+	hook := filepath.Join(r.Dir, ".git", "hooks", "pre-commit")
+	if err := os.MkdirAll(filepath.Dir(hook), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho rejected by hook >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gittest.AppendFile(t, r, "Unsorted.md", "- curated\n")
+	_, err := r.CommitAll("curate")
+	if err == nil || !strings.Contains(err.Error(), "rejected by hook") {
+		t.Fatalf("CommitAll with failing pre-commit hook: err = %v", err)
+	}
+	if h, _ := r.Head(); h != head {
+		t.Errorf("HEAD moved to %s despite failing hook", h)
 	}
 }
 
